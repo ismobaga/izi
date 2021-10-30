@@ -291,9 +291,19 @@ void Compiler::ifStatement() {
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition."); 
 
   int thenJump = emitJump(JUMP_IF_FALSE);
+  emitByte(POP);
   statement();
 
+  
+
+  int elseJump = emitJump(JUMP);
+
   patchJump(thenJump);
+  emitByte(POP);
+
+  if (match(TOKEN_ELSE)) statement();
+
+  patchJump(elseJump);
 }
 
  void Compiler::printStatement() {

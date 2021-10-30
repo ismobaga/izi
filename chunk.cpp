@@ -86,6 +86,10 @@ Chunk:: Chunk(){
       return simpleInstruction("OP_NEGATE", offset);
     case PRINT:
       return simpleInstruction("OP_PRINT", offset);
+    case JUMP:
+      return jumpInstruction("OP_JUMP", 1, offset);
+    case JUMP_IF_FALSE:
+      return jumpInstruction("OP_JUMP_IF_FALSE", 1, offset);
     case OpCode::RETURN:
       return simpleInstruction("OP_RETURN", offset);
     default:
@@ -106,4 +110,12 @@ int Chunk::byteInstruction(const char* name, int offset) {
   uint8_t slot = code[offset + 1];
   printf("%-16s %4d\n", name, slot);
   return offset + 2; 
+}
+
+int Chunk::jumpInstruction(const char* name, int sign, int offset) {
+  uint16_t jump = (uint16_t)(code[offset + 1] << 8);
+  jump |= code[offset + 2];
+  printf("%-16s %4d -> %d\n", name, offset,
+         offset + 3 + sign * jump);
+  return offset + 3;
 }

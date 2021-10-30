@@ -149,6 +149,11 @@ InterpretResult VM::run(){
         printf("\n");
         break;
       }
+      case JUMP: {
+        uint16_t offset = READ_SHORT();
+        itip += offset;
+        break;
+      }
       case JUMP_IF_FALSE: {
         uint16_t offset = READ_SHORT();
         if (isFalsey(peek(0))) itip += offset;

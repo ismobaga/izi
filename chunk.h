@@ -26,6 +26,7 @@ enum OpCode {
   NOT,
   NEGATE,
   PRINT,
+  JUMP,
   JUMP_IF_FALSE,
   RETURN,
 
@@ -49,4 +50,5 @@ class Chunk{
   int disassembleInstruction(int offset);
   int constantInstruction(const char* name, int offset);
   int byteInstruction(const char* name, int offset) ;
+  int jumpInstruction(const char* name, int sign, int offset) ;
 };
