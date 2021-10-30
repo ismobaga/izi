@@ -7,7 +7,6 @@ VM::VM()
 
   resetStack();
   defineNative("clock", clockNative);
-
 }
 
 InterpretResult VM::interpret(const char *source)
@@ -17,22 +16,26 @@ InterpretResult VM::interpret(const char *source)
     return INTERPRET_COMPILE_ERROR;
 
   push(FUNCTION_VAL(function));
-  
-  call(function, 0);
-  
+  Closure closure = std::make_shared<ObjClosure>(function);
+  pop();
+  push(CLOSURE_VAL(closure));
+
+  call(closure, 0);
+
   return run();
 }
 
-
 InterpretResult VM::run()
 {
-  CallFrame* frame = &frames[frameCount - 1];
+  CallFrame *frame = &frames[frameCount - 1];
 
-#define READ_BYTE() (*frame->ip++)
-#define READ_CONSTANT() (frame->function->chunk->constants[READ_BYTE()])
+#define READ_BYTE() *frame->ip++
+#define READ_CONSTANT() \
+  frame->closure->function->chunk->constants[READ_BYTE()]
 #define READ_SHORT() \
   (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
-#define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_STRING() \
+  AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op)                    \
   do                                                \
   {                                                 \
@@ -48,6 +51,7 @@ InterpretResult VM::run()
 
   for (;;)
   {
+#define DEBUG_TRACE_EXECUTION
 #ifdef DEBUG_TRACE_EXECUTION
     printf("          ");
     for (Value *slot = stack; slot < stackTop; slot++)
@@ -57,7 +61,7 @@ InterpretResult VM::run()
       printf(" ]");
     }
     printf("\n");
-    frame->function->chunk->disassembleInstruction((int)(frame->ip - frame->function->chunk->code.data()));
+    frame->closure->function->chunk->disassembleInstruction((int)(frame->ip - frame->closure->function->chunk->code.begin()));
 
 #endif
     uint8_t instruction;
@@ -81,7 +85,9 @@ InterpretResult VM::run()
     case POP:
       pop();
       break;
-    case DUP: push(peek(0)); break;
+    case DUP:
+      push(peek(0));
+      break;
     case GET_LOCAL:
     {
       uint8_t slot = READ_BYTE();
@@ -96,14 +102,15 @@ InterpretResult VM::run()
     }
     case GET_GLOBAL:
     {
-      auto name = READ_STRING();
+      std::string name = READ_STRING();
       Value value;
-      if (globals.find(name) == globals.end())
+      auto it = globals.find(name);
+      if (it == globals.end())
       {
         runtimeError("Undefined variable '%s'.", name.c_str());
         return INTERPRET_RUNTIME_ERROR;
       }
-      value = globals[name];
+      value = it->second;
       push(value);
       break;
     }
@@ -206,19 +213,30 @@ InterpretResult VM::run()
       frame->ip -= offset;
       break;
     }
-     case CALL: {
-        int argCount = READ_BYTE();
-        if (!callValue(peek(argCount), argCount)) {
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        frame = &frames[frameCount - 1];
-        break;
+    case CALL:
+    {
+      int argCount = READ_BYTE();
+      if (!callValue(peek(argCount), argCount))
+      {
+        return INTERPRET_RUNTIME_ERROR;
       }
+      frame = &frames[frameCount - 1];
+      break;
+    }
+
+    case CLOSURE:
+    {
+      Function function = AS_FUNCTION(READ_CONSTANT());
+      Closure closure = std::make_shared<ObjClosure>(function);
+      push(CLOSURE_VAL(closure));
+      break;
+    }
+
     case OpCode::RETURN:
     {
       Value result = pop();
       frameCount--;
-      if (frameCount==0)
+      if (frameCount == 0)
       {
         pop();
         return INTERPRET_OK;
@@ -252,15 +270,19 @@ void VM::runtimeError(const char *format, ...)
   va_end(args);
   fputs("\n", stderr);
 
-  for (int i = frameCount - 1; i >= 0; i--) {
-    CallFrame* frame = &frames[i];
-    Function function = frame->function;
-    size_t instruction = frame->ip - function->chunk->code.data() - 1;
-    fprintf(stderr, "[line %d] in ", 
+  for (int i = frameCount - 1; i >= 0; i--)
+  {
+    CallFrame *frame = &frames[i];
+    Function function = frame->closure->function;
+    size_t instruction = frame->ip - function->chunk->code.begin() - 1;
+    fprintf(stderr, "[line %d] in ",
             function->chunk->lines[instruction]);
-    if (function->name == "") {
+    if (function->name == "")
+    {
       fprintf(stderr, "script\n");
-    } else {
+    }
+    else
+    {
       fprintf(stderr, "%s()\n", function->name.c_str());
     }
   }
@@ -268,7 +290,8 @@ void VM::runtimeError(const char *format, ...)
   resetStack();
 }
 
-void VM::defineNative(const char* name, NativeFn function) {
+void VM::defineNative(const char *name, NativeFn function)
+{
   push(STRING_VAL(copyString(name, (int)strlen(name))));
   NativeFunction nf = std::make_shared<ObjNative>(function);
   push(NATIVE_VAL(nf));
@@ -294,43 +317,49 @@ Value VM::peek(int distance)
   return stackTop[-1 - distance];
 }
 
-bool VM::call(Function function, int argCount) {
-  if (argCount != function->arity) {
+bool VM::call(Closure closure, int argCount)
+{
+  if (argCount != closure->function->arity)
+  {
     runtimeError("Expected %d arguments but got %d.",
-        function->arity, argCount);
+                 closure->function->arity, argCount);
     return false;
   }
-  if (frameCount == FRAMES_MAX) {
+  if (frameCount == FRAMES_MAX)
+  {
     runtimeError("Stack overflow.");
     return false;
   }
 
-
-  CallFrame* frame = &frames[frameCount++];
-  frame->function = function;
-  frame->ip = function->chunk->code.data();
+  CallFrame *frame = &frames[frameCount++];
+  frame->closure = closure;
+  frame->ip = closure->function->chunk->code.begin();
   frame->slots = stackTop - argCount - 1;
   return true;
 }
 
-bool VM::callValue(Value callee, int argCount) {
-    switch (callee.type) {
-      case VAL_FUNCTION: 
-        return call(AS_FUNCTION(callee), argCount);
-      case VAL_NATIVE: {
-        NativeFn native = AS_NATIVEFN(callee);
-        Value result = native(argCount, stackTop - argCount);
-        stackTop -= argCount + 1;
-        push(result);
-        return true;
-      }
-      default:
-        break; // Non-callable object type.
+bool VM::callValue(Value callee, int argCount)
+{
+  switch (callee.type)
+  {
+  case VAL_CLOSURE:
+    return call(AS_CLOSURE(callee), argCount);
+  case VAL_NATIVE:
+  {
+    NativeFn native = AS_NATIVEFN(callee);
+    Value result = native(argCount, stackTop - argCount);
+    stackTop -= argCount + 1;
+    push(result);
+    return true;
+  }
+  default:
+    break; // Non-callable object type.
   }
   runtimeError("Can only call functions and classes.");
   return false;
 }
 
-Value clockNative(int argCount, Value* args) {
+Value clockNative(int argCount, Value *args)
+{
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }

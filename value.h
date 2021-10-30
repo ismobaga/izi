@@ -12,26 +12,45 @@
 class Chunk;
 struct ObjNative;
 struct ObjFunction;
-
+struct ObjClosure;
 
 using Function = std::shared_ptr<ObjFunction>;
 using NativeFunction = std::shared_ptr<ObjNative>;
-// using newNative = std::make_shared<ObjNative>();
+using Closure = std::shared_ptr<ObjClosure>;
 enum ValueType
 {
-  VAL_BOOL,
   VAL_NIL,
+  VAL_BOOL,
   VAL_NUMBER,
   VAL_STRING,
   VAL_FUNCTION,
+  VAL_CLOSURE,
   VAL_NATIVE,
 };
 struct Value
 {
   ValueType type;
 
-  using value_t = std::variant<bool, double, std::monostate, std::string, Function, NativeFunction>;
+  using value_t = std::variant<bool, double, std::monostate, std::string, Function, NativeFunction, Closure>;
   value_t as;
+
+  template <class T>
+  T get()
+  {
+    T val;
+
+    try
+    {
+      val = std::get<T>(as); // w contains int, not float: will throw
+    }
+    catch (const std::bad_variant_access &ex)
+    {
+
+      std::cout << "Execption :" << ex.what() << " : " << typeid(T).name() << '\n';
+    }
+
+    return val;
+  }
 
   bool operator==(const Value &rhs)
   {
@@ -61,9 +80,11 @@ enum FunctionType
   TYPE_SCRIPT
 };
 
-
-
-
+struct ObjClosure
+{
+  Function function;
+  ObjClosure(Function fn);
+};
 
 // custom specialization of std::hash can be injected in namespace std
 struct ValueHash
@@ -93,6 +114,8 @@ using Table = std::unordered_map<Value, Value, ValueHash>;
   Value { VAL_FUNCTION, value }
 #define NATIVE_VAL(value) \
   Value { VAL_NATIVE, value }
+#define CLOSURE_VAL(value) \
+  Value { VAL_CLOSURE, value }
 
 #define IS_BOOL(value) (value.type == VAL_BOOL)
 #define IS_NIL(value) (value.type == VAL_NIL)
@@ -100,13 +123,20 @@ using Table = std::unordered_map<Value, Value, ValueHash>;
 #define IS_STRING(value) (value.type == VAL_STRING)
 #define IS_FUNCTION(value) (value.type == VAL_FUNCTION)
 #define IS_NATIVE(value) (value.type == VAL_NATIVE)
+#define IS_CLOSURE(value) (value.type == VAL_CLOSURE)
 
-#define AS_BOOL(value) (std::get<bool>(value.as))
-#define AS_NUMBER(value) (std::get<double>(value.as))
-#define AS_STRING(value) (std::get<std::string>(value.as))
-#define AS_CSTRING(value) (std::get<std::string>(value.as).c_str())
-#define AS_FUNCTION(value) (std::get<Function>(value.as))
-#define AS_NATIVEFN(value) (std::get<NativeFunction>(value.as)->function)
+#define AS_BOOL(value) (value.get<bool>())
+#define AS_NUMBER(value) (value.get<double>())
+// #define AS_NUMBER(value) (std::get<double>(value.as))
+// #define AS_STRING(value) (std::get<std::string>(value.as))
+#define AS_STRING(value) (value.get<std::string>())
+// #define AS_CSTRING(value) (std::get<std::string>(value.as).c_str())
+#define AS_CSTRING(value) (value.get<std::string>().c_str())
+// #define AS_FUNCTION(value) (std::get<Function>(value.as))
+#define AS_FUNCTION(value) (value.get<Function>())
+// #define AS_NATIVEFN(value) (std::get<NativeFunction>(value.as)->function)
+#define AS_NATIVEFN(value) (value.get<NativeFunction>()->function)
+#define AS_CLOSURE(value) (value.get<Closure>())
 
 struct OutputVisitor
 {
@@ -115,6 +145,10 @@ struct OutputVisitor
   void operator()(const std::monostate n) const { std::cout << "nil"; }
   void operator()(const std::string &s) const { std::cout << s; }
   void operator()(const NativeFunction &n) const { std::cout << "<native fn>"; }
+  void operator()(const Closure &c) const
+  {
+    operator()(c->function);
+  };
   void operator()(const Function &f) const
   {
     if (f->name != "")
