@@ -89,6 +89,7 @@ InterpretResult VM::run()
     case POP:
       pop();
       break;
+    case DUP: push(peek(0)); break;
     case GET_LOCAL:
     {
       uint8_t slot = READ_BYTE();

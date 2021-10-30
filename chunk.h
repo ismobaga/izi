@@ -11,6 +11,7 @@ enum OpCode {
   TRUE,
   FALSE,
   POP,
+  DUP,
   GET_LOCAL,
   SET_LOCAL,
   GET_GLOBAL,

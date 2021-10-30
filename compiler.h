@@ -107,6 +107,7 @@ void varDeclaration();
 void expressionStatement();
 void forStatement();
 void ifStatement();
+void switchStatement();
 void printStatement();
 void whileStatement();
 void synchronize(); /* Eviter a cascade d'erreur (apres statement)*/
