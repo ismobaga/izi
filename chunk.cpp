@@ -90,6 +90,8 @@ Chunk:: Chunk(){
       return jumpInstruction("OP_JUMP", 1, offset);
     case JUMP_IF_FALSE:
       return jumpInstruction("OP_JUMP_IF_FALSE", 1, offset);
+    case LOOP:
+      return jumpInstruction("OP_LOOP", -1, offset);
     case OpCode::RETURN:
       return simpleInstruction("OP_RETURN", offset);
     default:

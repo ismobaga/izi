@@ -84,6 +84,7 @@ bool match(TokenType type){ return parser.match(type);}
 void error(const char* message) ;
 void emitByte(uint8_t byte);
 void emitBytes(uint8_t byte1, uint8_t byte2);
+void emitLoop(int loopStart);
 int emitJump(uint8_t instruction);
 void emitReturn();
 uint8_t makeConstant(Value value);
@@ -105,7 +106,8 @@ void block();
 void varDeclaration();
 void expressionStatement();
 void ifStatement();
-void printStatement() ;
+void printStatement();
+void whileStatement();
 void synchronize(); /* Eviter a cascade d'erreur (apres statement)*/
 void statement();
 void declaration();

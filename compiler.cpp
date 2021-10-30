@@ -120,6 +120,16 @@ void Compiler::emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte2);
 }
 
+void Compiler::emitLoop(int loopStart) {
+  emitByte(OpCode::LOOP);
+
+  int offset = currentChunk()->size() - loopStart + 2;
+  if (offset > UINT16_MAX) error("Loop body too large.");
+
+  emitByte((offset >> 8) & 0xff);
+  emitByte(offset & 0xff);
+}
+
 int Compiler::emitJump(uint8_t instruction) {
   emitByte(instruction);
   emitByte(0xff);
@@ -311,6 +321,20 @@ void Compiler::ifStatement() {
   consume(TOKEN_SEMICOLON, "Expect ';' after value.");
   emitByte(OpCode::PRINT);
 }
+ void Compiler::whileStatement() {
+   int loopStart = currentChunk()->size();
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+  int exitJump = emitJump(OpCode::JUMP_IF_FALSE);
+  emitByte(OpCode::POP);
+  statement();
+  emitLoop(loopStart);
+
+  patchJump(exitJump);
+  emitByte(OpCode::POP);
+}
 
 void Compiler::synchronize(){
     parser.panicMode = false;
@@ -353,6 +377,8 @@ void Compiler::statement(){
     printStatement();
   } else if (match(TOKEN_IF)) {
     ifStatement();
+  } else if (match(TOKEN_WHILE)) {
+    whileStatement();
   }
    else if (match(TOKEN_LEFT_BRACE)) {
     beginScope();
@@ -526,11 +552,11 @@ void Compiler::and_() {
 }
 
 void Compiler::or_(){
-  int elseJump = emitJump(OpCOde::JUMP_IF_FALSE);
+  int elseJump = emitJump(OpCode::JUMP_IF_FALSE);
   int endJump = emitJump(OpCode::JUMP);
 
   patchJump(elseJump);
-  emitByte(OpCOde::POP);
+  emitByte(OpCode::POP);
   // right operande
   parsePrecedence(PREC_OR);
   patchJump(endJump);
