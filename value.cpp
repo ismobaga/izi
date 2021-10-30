@@ -1,7 +1,20 @@
 #include "value.h"
+#include "chunk.h"
 
 #include <iterator>
 #include <string>
+
+
+ObjFunction::ObjFunction(){
+  arity = 0;
+  name= "";
+  chunk = new Chunk();
+
+}
+ObjFunction::~ObjFunction(){
+  delete chunk;
+}
+
 
 
 inline std::ostream& operator<<(std::ostream& os, const Value& v) {
@@ -16,6 +29,12 @@ void printValue(Value value) {
     case VAL_NIL: printf("nil"); break;
     case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
     case VAL_STRING: printf("%s", AS_CSTRING(value)); break;
+    case VAL_FUNCTION: 
+      if (AS_FUNCTION(value)->name.c_str() == NULL) {
+        printf("<script>");
+        return;
+      }
+      printf("<fn %s>", AS_FUNCTION(value)->name.c_str()); break;
   }
 }
 struct FalsinessVisitor {

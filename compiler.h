@@ -3,6 +3,7 @@
 #include "scanner.h"
 #include "chunk.h"
 #include <functional>
+#include <memory>
 
 
 #ifdef DEBUG_PRINT_CODE
@@ -59,6 +60,8 @@ struct Local{
   Local locals[UINT8_MAX];
   int localCount;
   int scopeDepth;
+  Function function;
+  FunctionType type;
 } ;
 
 
@@ -74,10 +77,10 @@ std::unordered_map<std::string, Value> stringConstants;
 
 public: 
 Compiler();
-void initState(CompilerState *cs);
+void initState(CompilerState *cs, FunctionType type);
 Chunk* currentChunk() ;
 
-bool compile(const char* source, Chunk *chunk);
+Function compile(const char* source);
 void advance();
 void consume(TokenType type, const char * message);
 bool match(TokenType type){ return parser.match(type);}
@@ -90,7 +93,7 @@ void emitReturn();
 uint8_t makeConstant(Value value);
 void patchJump(int offset);
 void emitConstant(Value value);
-void endCompiler();
+Function endCompiler();
 void beginScope();
 void endScope();
 void binary();

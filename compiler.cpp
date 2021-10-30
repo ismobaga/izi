@@ -57,13 +57,19 @@ bool Parser::match(TokenType type) {
 
 
 Compiler::Compiler(){
-  // initState(new CompilerState);
+  // initState(new CompilerState, TYPE_SCRIPT);
   
 }
-void Compiler::initState(CompilerState *compilerState){
+void Compiler::initState(CompilerState *compilerState,  FunctionType type){
   compilerState->localCount = 0;
   compilerState->scopeDepth = 0;
+  compilerState->function = std::make_shared<ObjFunction>();
+  compilerState->type = type;
   current = compilerState;
+  Local* local = &current->locals[current->localCount++];
+  local->depth = 0;
+  local->name.start = "";
+  local->name.length = 0;
 }
 /*
 bool Compiler::compile(const char* source, Chunk *chunk) {
@@ -83,11 +89,10 @@ bool Compiler::compile(const char* source, Chunk *chunk) {
   }
 }*/
 
-bool Compiler::compile(const char* source, Chunk *chunk) {
+Function Compiler::compile(const char* source) {
   scanner.reset(source);
   CompilerState compiler;
-  initState(&compiler);
-  compilingChunk = chunk;
+  initState(&compiler, TYPE_SCRIPT);
   parser.scanner = &scanner;
   parser.hadError = false;
   parser.panicMode = false;
@@ -97,8 +102,8 @@ bool Compiler::compile(const char* source, Chunk *chunk) {
   }
 
   consume(TOKEN_EOF, "Expect end of expression.");
-  endCompiler();
-  return !parser.hadError;
+  auto function = endCompiler();
+  return parser.hadError ? NULL : function;
 }
 
 void Compiler::advance(){parser.advance();}
@@ -108,7 +113,7 @@ void Compiler::consume(TokenType type, const char * message){parser.consume(type
 }
 
 Chunk* Compiler::currentChunk() {
-  return compilingChunk;
+  return current->function->chunk;
 }
 
 
@@ -164,13 +169,17 @@ void Compiler::emitConstant(Value value){
   emitBytes(OpCode::CONSTANT, makeConstant(value));
 }
 
-void Compiler::endCompiler() {
+Function Compiler::endCompiler() {
   emitReturn();
+  Function function = current->function;
   #ifdef DEBUG_PRINT_CODE
   if (!parser.hadError) {
-    disassembleChunk(currentChunk(), "code");
+    disassembleChunk(currentChunk(), function->name != ""
+        ? function->name.c_str() : "<script>");
   }
 #endif
+
+return function;
 }
 void Compiler::beginScope() {
   current->scopeDepth++;

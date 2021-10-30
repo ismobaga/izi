@@ -5,7 +5,8 @@
 #include "value.h"
 #include "compiler.h"
 
-#define STACK_MAX 256
+#define FRAMES_MAX 64
+#define STACK_MAX (FRAMES_MAX * UINT8_MAX)
 
  enum InterpretResult{
   INTERPRET_OK,
@@ -13,9 +14,15 @@
   INTERPRET_RUNTIME_ERROR
 } ;
 
- struct VM {
-  Chunk* chunk;
+struct CallFrame {
+  Function function;
   uint8_t* ip;
+  Value* slots;
+} ;
+
+ struct VM {
+  CallFrame frames[FRAMES_MAX];
+  int frameCount;
   std::vector<uint8_t>::iterator itip;
   Value stack[STACK_MAX];
   Value* stackTop;

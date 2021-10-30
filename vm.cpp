@@ -9,37 +9,28 @@ VM::VM()
 
 InterpretResult VM::interpret(const char *source)
 {
-  chunk = new Chunk();
-  if (!compiler.compile(source, chunk))
-  {
-    delete chunk;
-    chunk = nullptr;
+  Function function = compiler.compile(source);
+  if (function == nullptr)
     return INTERPRET_COMPILE_ERROR;
-  }
-  ip = this->chunk->code.data();
-  itip = this->chunk->code.begin();
 
-  InterpretResult result = run();
-  delete chunk;
-  chunk = nullptr;
-  return result;
-}
-
-InterpretResult VM::interpret(Chunk *chunk)
-{
-  this->chunk = chunk;
-  ip = this->chunk->code.data();
-  itip = this->chunk->code.begin();
+  push(FUNCTION_VAL(function));
+  CallFrame *frame = &frames[frameCount++];
+  frame->function = function;
+  frame->ip = function->chunk->code.data();
+  frame->slots = stack;
+  
   return run();
 }
 
+
 InterpretResult VM::run()
 {
+  CallFrame* frame = &frames[frameCount - 1];
 
-#define READ_BYTE() (*itip++)
-#define READ_CONSTANT() (chunk->constants[READ_BYTE()])
+#define READ_BYTE() (*frame->ip++)
+#define READ_CONSTANT() (frame->function->chunk->constants[READ_BYTE()])
 #define READ_SHORT() \
-  (itip += 2, (uint16_t)((itip[-2] << 8) | itip[-1]))
+  (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op)                    \
   do                                                \
@@ -65,7 +56,7 @@ InterpretResult VM::run()
       printf(" ]");
     }
     printf("\n");
-    chunk->disassembleInstruction((int)(itip - chunk->code.begin()));
+    frame->function->chunk->disassembleInstruction((int)(frame->ip - frame->function->chunk->code.data()));
 
 #endif
     uint8_t instruction;
@@ -93,13 +84,13 @@ InterpretResult VM::run()
     case GET_LOCAL:
     {
       uint8_t slot = READ_BYTE();
-      push(stack[slot]);
+      push(frame->slots[slot]);
       break;
     }
     case SET_LOCAL:
     {
       uint8_t slot = READ_BYTE();
-      stack[slot] = peek(0);
+      frame->slots[slot] = peek(0);
       break;
     }
     case GET_GLOBAL:
@@ -198,20 +189,20 @@ InterpretResult VM::run()
     case JUMP:
     {
       uint16_t offset = READ_SHORT();
-      itip += offset;
+      frame->ip += offset;
       break;
     }
     case JUMP_IF_FALSE:
     {
       uint16_t offset = READ_SHORT();
       if (isFalsey(peek(0)))
-        itip += offset;
+        frame->ip += offset;
       break;
     }
     case LOOP:
     {
       uint16_t offset = READ_SHORT();
-      itip -= offset;
+      frame->ip -= offset;
       break;
     }
     case OpCode::RETURN:
@@ -230,6 +221,7 @@ InterpretResult VM::run()
 void VM::resetStack()
 {
   stackTop = stack;
+  frameCount = 0;
 }
 
 void VM::runtimeError(const char *format, ...)
@@ -240,8 +232,9 @@ void VM::runtimeError(const char *format, ...)
   va_end(args);
   fputs("\n", stderr);
 
-  size_t instruction = ip - chunk->code.data() - 1;
-  int line = chunk->lines[instruction];
+  CallFrame *frame = &frames[frameCount-1];
+  size_t instruction = frame->ip - frame->function->chunk->code.data() - 1;
+  int line = frame->function->chunk->lines[instruction];
   fprintf(stderr, "[line %d] in script\n", line);
   resetStack();
 }
