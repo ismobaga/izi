@@ -372,6 +372,8 @@ ParseRule* Compiler::getRule(TokenType type) {
   auto string = [this](bool canAssign) { this->string(); };
   auto literal = [this](bool canAssign) { this->literal(); };
   auto variable = [this](bool canAssign) { this->variable(canAssign); };
+  auto and_ = [this](bool canAssign) { this->and_(); };
+  auto or_ = [this](bool canAssign) { this->or_(); };
   static ParseRule rules[] = {
   [TOKEN_LEFT_PAREN]    = {grouping, NULL,   PREC_NONE},
   [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
@@ -395,7 +397,7 @@ ParseRule* Compiler::getRule(TokenType type) {
   [TOKEN_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
   [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
-  [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_AND]           = {NULL,     and_,   PREC_AND},
   [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
   [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
@@ -403,7 +405,7 @@ ParseRule* Compiler::getRule(TokenType type) {
   [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
   [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
-  [TOKEN_OR]            = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_OR]            = {NULL,     or_,   PREC_OR},
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
@@ -512,4 +514,24 @@ void Compiler::defineVariable(uint8_t global) {
   }
 
   emitBytes(OpCode::DEFINE_GLOBAL, global);
+}
+
+void Compiler::and_() {
+  int endJump = emitJump(OpCode::JUMP_IF_FALSE);
+
+  emitByte(POP);
+  parsePrecedence(PREC_AND);
+
+  patchJump(endJump);
+}
+
+void Compiler::or_(){
+  int elseJump = emitJump(OpCOde::JUMP_IF_FALSE);
+  int endJump = emitJump(OpCode::JUMP);
+
+  patchJump(elseJump);
+  emitByte(OpCOde::POP);
+  // right operande
+  parsePrecedence(PREC_OR);
+  patchJump(endJump);
 }

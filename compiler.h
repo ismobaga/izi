@@ -118,4 +118,6 @@ void declareVariable();
 uint8_t parseVariable(const char* errorMessage) ;
 void markInitialized();
 void defineVariable(uint8_t global) ;
+void and_();
+void or_();
 };
