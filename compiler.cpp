@@ -61,11 +61,16 @@ Compiler::Compiler(){
   
 }
 void Compiler::initState(CompilerState *compilerState,  FunctionType type){
+  compilerState->enclosing = current;
   compilerState->localCount = 0;
   compilerState->scopeDepth = 0;
   compilerState->function = std::make_shared<ObjFunction>();
   compilerState->type = type;
   current = compilerState;
+  if (type != TYPE_SCRIPT) {
+    current->function->name = copyString(parser.previous.start,
+                                         parser.previous.length);
+  }
   Local* local = &current->locals[current->localCount++];
   local->depth = 0;
   local->name.start = "";
@@ -178,8 +183,8 @@ Function Compiler::endCompiler() {
         ? function->name.c_str() : "<script>");
   }
 #endif
-
-return function;
+  current = current->enclosing;
+  return function;
 }
 void Compiler::beginScope() {
   current->scopeDepth++;
@@ -283,6 +288,35 @@ void Compiler::block() {
   }
 
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
+void Compiler::function(FunctionType type) {
+  CompilerState cState;
+  initState(&cState, type);
+  beginScope(); 
+
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+    if (!parser.check(TOKEN_RIGHT_PAREN)) {
+    do {
+      current->function->arity++;
+      if (current->function->arity > 255) {
+        parser.errorAtCurrent("Can't have more than 255 parameters.");
+      }
+      uint8_t constant = parseVariable("Expect parameter name.");
+      defineVariable(constant);
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+  block();
+
+  Function func = endCompiler();
+  emitBytes(CONSTANT, makeConstant(FUNCTION_VAL(func)));
+}
+void Compiler::funDeclaration(){
+  uint8_t global = parseVariable("Expect function name.");
+  markInitialized();
+  function(TYPE_FUNCTION);
+  defineVariable(global);
 }
 void Compiler::varDeclaration(){
   uint8_t global = parseVariable("Expect variable name.");
@@ -484,7 +518,9 @@ void Compiler::synchronize(){
 }
 
 void Compiler::declaration() {
-  if (match(TOKEN_VAR)) {
+    if (match(TOKEN_FUN)) {
+    funDeclaration();
+  } else if (match(TOKEN_VAR)) {
     varDeclaration();
   } else {
     statement();
@@ -658,6 +694,7 @@ uint8_t Compiler::parseVariable(const char* errorMessage) {
 }
 
  void Compiler::markInitialized() {
+   if (current->scopeDepth == 0) return;
   current->locals[current->localCount - 1].depth =
       current->scopeDepth;
 }

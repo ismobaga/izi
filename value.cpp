@@ -30,7 +30,7 @@ void printValue(Value value) {
     case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
     case VAL_STRING: printf("%s", AS_CSTRING(value)); break;
     case VAL_FUNCTION: 
-      if (AS_FUNCTION(value)->name.c_str() == NULL) {
+      if (AS_FUNCTION(value)->name == "") {
         printf("<script>");
         return;
       }

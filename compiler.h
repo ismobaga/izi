@@ -57,6 +57,7 @@ struct Local{
 } ;
 
  struct CompilerState {
+  CompilerState* enclosing;
   Local locals[UINT8_MAX];
   int localCount;
   int scopeDepth;
@@ -106,6 +107,8 @@ void variable(bool canAssign);
 void unary();
 void expression();
 void block();
+void function(FunctionType type) ;
+void funDeclaration();
 void varDeclaration();
 void expressionStatement();
 void forStatement();

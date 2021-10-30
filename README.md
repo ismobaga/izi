@@ -2,7 +2,7 @@
 
 
 ## Mot cle 
-`var, if, switch, case, default while for, print`
+`var, if, switch, case, default while for, print, fun`
 ## Types
 `number, string`
 ## Operators
@@ -20,6 +20,12 @@ while(i<10){
     print i;
     i = i+1;
 }
+
+fun areWeHavingItYet() {
+  print "Yes we are!";
+}
+
+print areWeHavingItYet;
 ```
 
 
