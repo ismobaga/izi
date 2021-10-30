@@ -105,6 +105,7 @@ void expression();
 void block();
 void varDeclaration();
 void expressionStatement();
+void forStatement();
 void ifStatement();
 void printStatement();
 void whileStatement();
