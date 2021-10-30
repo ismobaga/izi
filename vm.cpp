@@ -14,10 +14,8 @@ InterpretResult VM::interpret(const char *source)
     return INTERPRET_COMPILE_ERROR;
 
   push(FUNCTION_VAL(function));
-  CallFrame *frame = &frames[frameCount++];
-  frame->function = function;
-  frame->ip = function->chunk->code.data();
-  frame->slots = stack;
+  
+  call(function, 0);
   
   return run();
 }
@@ -205,9 +203,28 @@ InterpretResult VM::run()
       frame->ip -= offset;
       break;
     }
+     case CALL: {
+        int argCount = READ_BYTE();
+        if (!callValue(peek(argCount), argCount)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        frame = &frames[frameCount - 1];
+        break;
+      }
     case OpCode::RETURN:
     {
-      return INTERPRET_OK;
+      Value result = pop();
+      frameCount--;
+      if (frameCount==0)
+      {
+        pop();
+        return INTERPRET_OK;
+      }
+
+      stackTop = frame->slots;
+      push(result);
+      frame = &frames[frameCount - 1];
+      break;
     }
     }
   }
@@ -232,10 +249,19 @@ void VM::runtimeError(const char *format, ...)
   va_end(args);
   fputs("\n", stderr);
 
-  CallFrame *frame = &frames[frameCount-1];
-  size_t instruction = frame->ip - frame->function->chunk->code.data() - 1;
-  int line = frame->function->chunk->lines[instruction];
-  fprintf(stderr, "[line %d] in script\n", line);
+  for (int i = frameCount - 1; i >= 0; i--) {
+    CallFrame* frame = &frames[i];
+    Function function = frame->function;
+    size_t instruction = frame->ip - function->chunk->code.data() - 1;
+    fprintf(stderr, "[line %d] in ", 
+            function->chunk->lines[instruction]);
+    if (function->name == "") {
+      fprintf(stderr, "script\n");
+    } else {
+      fprintf(stderr, "%s()\n", function->name.c_str());
+    }
+  }
+
   resetStack();
 }
 
@@ -254,4 +280,34 @@ Value VM::pop()
 Value VM::peek(int distance)
 {
   return stackTop[-1 - distance];
+}
+
+bool VM::call(Function function, int argCount) {
+  if (argCount != function->arity) {
+    runtimeError("Expected %d arguments but got %d.",
+        function->arity, argCount);
+    return false;
+  }
+  if (frameCount == FRAMES_MAX) {
+    runtimeError("Stack overflow.");
+    return false;
+  }
+
+
+  CallFrame* frame = &frames[frameCount++];
+  frame->function = function;
+  frame->ip = function->chunk->code.data();
+  frame->slots = stackTop - argCount - 1;
+  return true;
+}
+
+bool VM::callValue(Value callee, int argCount) {
+    switch (callee.type) {
+      case VAL_FUNCTION: 
+        return call(AS_FUNCTION(callee), argCount);
+      default:
+        break; // Non-callable object type.
+  }
+  runtimeError("Can only call functions and classes.");
+  return false;
 }

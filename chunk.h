@@ -30,6 +30,7 @@ enum OpCode {
   JUMP,
   JUMP_IF_FALSE,
   LOOP,
+  CALL,
   RETURN,
 
 } ;

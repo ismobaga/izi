@@ -147,6 +147,7 @@ int Compiler::emitJump(uint8_t instruction) {
   return currentChunk()->size() - 2;
 }
 void Compiler::emitReturn() {
+  emitByte(OpCode::NIL);
   emitByte(OpCode::RETURN);
 }
 uint8_t Compiler::makeConstant(Value value){
@@ -216,6 +217,11 @@ void Compiler::binary() {
     case TOKEN_SLASH:         emitByte(OpCode::DIVIDE); break;
     default: return; // Unreachable.
   }
+}
+
+void Compiler::call() {
+  uint8_t argCount = argumentList();
+  emitBytes(OpCode::CALL, argCount);
 }
 void Compiler::literal() {
   switch (parser.previous.type) {
@@ -478,6 +484,18 @@ void Compiler::switchStatement() {
   consume(TOKEN_SEMICOLON, "Expect ';' after value.");
   emitByte(OpCode::PRINT);
 }
+void Compiler::returnStatement() {
+  if (current->type == TYPE_SCRIPT) {
+    error("Can't return from top-level code.");
+  }
+  if (match(TOKEN_SEMICOLON)) {
+    emitReturn();
+  } else {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+    emitByte(OpCode::RETURN);
+  }
+}
  void Compiler::whileStatement() {
    int loopStart = currentChunk()->size();
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
@@ -536,6 +554,8 @@ void Compiler::statement(){
     printStatement();
   } else if (match(TOKEN_IF)) {
     ifStatement();
+  } else if (match(TOKEN_RETURN)) {
+    returnStatement();
    }
    else if (match(TOKEN_SWITCH)) {
     switchStatement();
@@ -559,6 +579,7 @@ ParseRule* Compiler::getRule(TokenType type) {
   auto grouping = [this](bool canAssign) { this->grouping(); };
   auto unary = [this](bool canAssign) { this->unary(); };
   auto binary = [this](bool canAssign) { this->binary( ); };
+  auto call = [this](bool canAssign) { this->call(); };
   auto number = [this](bool canAssign) { this->number(); };
   auto string = [this](bool canAssign) { this->string(); };
   auto literal = [this](bool canAssign) { this->literal(); };
@@ -566,7 +587,7 @@ ParseRule* Compiler::getRule(TokenType type) {
   auto and_ = [this](bool canAssign) { this->and_(); };
   auto or_ = [this](bool canAssign) { this->or_(); };
   static ParseRule rules[] = {
-  [TOKEN_LEFT_PAREN]    = {grouping, NULL,   PREC_NONE},
+  [TOKEN_LEFT_PAREN]    = {grouping, call,   PREC_CALL},
   [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
   [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, 
   [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
@@ -706,6 +727,21 @@ void Compiler::defineVariable(uint8_t global) {
   }
 
   emitBytes(OpCode::DEFINE_GLOBAL, global);
+}
+
+uint8_t Compiler::argumentList() {
+  uint8_t argCount = 0;
+  if (!parser.check(TOKEN_RIGHT_PAREN)) {
+    do {
+      expression();
+       if (argCount == 255) {
+        error("Can't have more than 255 arguments.");
+      }
+      argCount++;
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+  return argCount;
 }
 
 void Compiler::and_() {

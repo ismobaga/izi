@@ -43,5 +43,7 @@ struct CallFrame {
   void runtimeError(const char* format, ...) ;
   void push(Value value);
   Value pop();
-  Value peek(int distance) ;
+  Value peek(int distance);
+  bool call(Function function, int argCount);
+  bool callValue(Value callee, int argCount);
 } ;

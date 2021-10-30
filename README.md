@@ -2,7 +2,7 @@
 
 
 ## Mot cle 
-`var, if, switch, case, default while for, print, fun`
+`var, if, switch, case, default while for, print, fun, return`
 ## Types
 `number, string`
 ## Operators
@@ -26,6 +26,18 @@ fun areWeHavingItYet() {
 }
 
 print areWeHavingItYet;
+fun noReturn() {
+  print "Do stuff";
+  // No return here.
+}
+
+print noReturn(); // nil
+
+fun sum(a, b, c) {
+  print a + b + c;
+}
+
+print 4 sum(5, 6, 7);
 ```
 
 
