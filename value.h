@@ -65,11 +65,20 @@ struct ObjNative
   NativeFn function;
   ObjNative(NativeFn native);
 };
+
+struct ObjUpvalue {
+  Value* location;
+  Value closed;
+  struct ObjUpvalue* next;
+  ObjUpvalue(Value* slot);
+};
+
 struct ObjFunction
 {
   int arity;
   Chunk *chunk;
   std::string name;
+  int upvalueCount;
   ObjFunction();
   ~ObjFunction();
 };
@@ -83,7 +92,10 @@ enum FunctionType
 struct ObjClosure
 {
   Function function;
+  ObjUpvalue** upvalues;
+  int upvalueCount;
   ObjClosure(Function fn);
+  ~ObjClosure();
 };
 
 // custom specialization of std::hash can be injected in namespace std

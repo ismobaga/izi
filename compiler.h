@@ -56,12 +56,20 @@ struct Local
 {
   Token name;
   int depth;
+  bool isCaptured;
+};
+
+struct Upvalue
+{
+  uint8_t index;
+  bool isLocal;
 };
 
 struct CompilerState
 {
   CompilerState *enclosing;
   Local locals[UINT8_MAX];
+  Upvalue upvalues[UINT8_MAX];
   int localCount;
   int scopeDepth;
   Function function;
@@ -126,6 +134,9 @@ public:
   uint8_t identifierConstant(Token *name);
   void addLocal(Token name);
   int resolveLocal(CompilerState *compilerState, Token *name);
+  int addUpvalue(CompilerState *compiler, uint8_t index,
+                 bool isLocal);
+  int resolveUpvalue(CompilerState *compiler, Token *name);
   void declareVariable();
   uint8_t parseVariable(const char *errorMessage);
   void markInitialized();

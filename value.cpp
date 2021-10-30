@@ -9,10 +9,18 @@ ObjNative::ObjNative(NativeFn native)
   function = native;
 }
 
+ObjUpvalue::ObjUpvalue(Value *slot){
+  location = slot;
+  next = nullptr;
+  closed = NIL_VAL;
+
+}
+
 ObjFunction::ObjFunction()
 {
   arity = 0;
   name = "";
+  upvalueCount = 0;
   chunk = new Chunk();
 }
 ObjFunction::~ObjFunction()
@@ -23,6 +31,16 @@ ObjFunction::~ObjFunction()
 ObjClosure::ObjClosure(Function fn)
 {
   function = fn;
+  upvalues= new ObjUpvalue*[fn->upvalueCount];
+  upvalueCount = function->upvalueCount;
+  for (int i = 0; i < function->upvalueCount; i++) {
+    upvalues[i] = nullptr;
+  }
+
+}
+ObjClosure::~ObjClosure(){
+ 
+  delete[] upvalues;
 }
 
 inline std::ostream &operator<<(std::ostream &os, const Value &v)

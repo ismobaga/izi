@@ -232,7 +232,11 @@ void Compiler::endScope()
          current->locals[current->localCount - 1].depth >
              current->scopeDepth)
   {
-    emitByte(OpCode::POP);
+    if (current->locals[current->localCount - 1].isCaptured) {
+      emitByte(OpCode::CLOSE_UPVALUE);
+    } else {
+      emitByte(OpCode::POP);
+    }
     current->localCount--;
   }
 }
@@ -328,6 +332,12 @@ void Compiler::namedVariable(Token name, bool canAssign)
     getOp = OpCode::GET_LOCAL;
     setOp = OpCode::SET_LOCAL;
   }
+  else if ((arg = resolveUpvalue(current, &name)) != -1)
+  {
+    getOp = OpCode::GET_UPVALUE;
+    setOp = OpCode::SET_UPVALUE;
+  }
+
   else
   {
     arg = identifierConstant(&name);
@@ -409,6 +419,10 @@ void Compiler::function(FunctionType type)
 
   Function func = endCompiler();
   emitBytes(OpCode::CLOSURE, makeConstant(FUNCTION_VAL(func)));
+  for (int i = 0; i < func->upvalueCount; i++) {
+    emitByte(cState.upvalues[i].isLocal ? 1 : 0);
+    emitByte(cState.upvalues[i].index);
+  }
 }
 void Compiler::funDeclaration()
 {
@@ -842,6 +856,50 @@ int Compiler::resolveLocal(CompilerState *compiler, Token *name)
 
   return -1;
 }
+
+int Compiler::addUpvalue(CompilerState *compiler, uint8_t index,
+                         bool isLocal)
+{
+  int upvalueCount = compiler->function->upvalueCount;
+  for (int i = 0; i < upvalueCount; i++)
+  {
+    Upvalue *upvalue = &compiler->upvalues[i];
+    if (upvalue->index == index && upvalue->isLocal == isLocal)
+    {
+      return i;
+    }
+  }
+  if (upvalueCount == UINT8_MAX)
+  {
+    error("Too many closure variables in function.");
+    return 0;
+  }
+
+  compiler->upvalues[upvalueCount].isLocal = isLocal;
+  compiler->upvalues[upvalueCount].index = index;
+  return compiler->function->upvalueCount++;
+}
+
+int Compiler::resolveUpvalue(CompilerState *compiler, Token *name)
+{
+  if (current->enclosing == NULL)
+    return -1;
+
+  int local = resolveLocal(current->enclosing, name);
+  if (local != -1)
+  {
+    compiler->enclosing->locals[local].isCaptured = true;
+    return addUpvalue(compiler, (uint8_t)local, true);
+  }
+
+  int upvalue = resolveUpvalue(compiler->enclosing, name);
+  if (upvalue != -1)
+  {
+    return addUpvalue(compiler, (uint8_t)upvalue, false);
+  }
+
+  return -1;
+}
 void Compiler::declareVariable()
 {
   if (current->scopeDepth == 0)
@@ -874,6 +932,7 @@ void Compiler::addLocal(Token name)
   Local *local = &current->locals[current->localCount++];
   local->name = name;
   local->depth = -1;
+  local->isCaptured = false;
   // local->depth = current->scopeDepth;
 }
 uint8_t Compiler::parseVariable(const char *errorMessage)

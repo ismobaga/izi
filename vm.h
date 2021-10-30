@@ -34,6 +34,7 @@ struct VM
   std::unordered_map<std::string, Value> globals; /* hash table global variables*/
   // cache string in memoire chap. 20
   // Table strings;
+  ObjUpvalue* openUpvalues;
 
   Compiler compiler;
 
@@ -50,6 +51,8 @@ struct VM
   Value peek(int distance);
   bool call(Closure closure, int argCount);
   bool callValue(Value callee, int argCount);
+  ObjUpvalue* captureUpvalue(Value* local) ;
+  void closeUpvalues(Value* last) ;
 };
 
 Value clockNative(int argCount, Value *args);

@@ -17,6 +17,8 @@ enum OpCode
   GET_GLOBAL,
   DEFINE_GLOBAL,
   SET_GLOBAL,
+  GET_UPVALUE,
+  SET_UPVALUE,
   EQUAL,
   GREATER,
   LESS,
@@ -32,6 +34,7 @@ enum OpCode
   LOOP,
   CALL,
   CLOSURE,
+  CLOSE_UPVALUE,
   RETURN,
 
 };

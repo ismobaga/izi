@@ -133,6 +133,18 @@ InterpretResult VM::run()
       globals[name] = peek(0);
       break;
     }
+    case GET_UPVALUE:
+    {
+      uint8_t slot = READ_BYTE();
+      push(*frame->closure->upvalues[slot]->location);
+      break;
+    }
+    case SET_UPVALUE:
+    {
+      uint8_t slot = READ_BYTE();
+      *frame->closure->upvalues[slot]->location = peek(0);
+      break;
+    }
     case EQUAL:
     {
       Value b = pop();
@@ -229,12 +241,31 @@ InterpretResult VM::run()
       Function function = AS_FUNCTION(READ_CONSTANT());
       Closure closure = std::make_shared<ObjClosure>(function);
       push(CLOSURE_VAL(closure));
+      for (int i = 0; i < closure->upvalueCount; i++)
+      {
+        uint8_t isLocal = READ_BYTE();
+        uint8_t index = READ_BYTE();
+        if (isLocal)
+        {
+          closure->upvalues[i] =
+              captureUpvalue(frame->slots + index);
+        }
+        else
+        {
+          closure->upvalues[i] = frame->closure->upvalues[index];
+        }
+      }
       break;
     }
+    case CLOSE_UPVALUE:
+        closeUpvalues(stackTop - 1);
+        pop();
+        break;
 
     case OpCode::RETURN:
     {
       Value result = pop();
+      closeUpvalues(frame->slots);
       frameCount--;
       if (frameCount == 0)
       {
@@ -260,6 +291,7 @@ void VM::resetStack()
 {
   stackTop = stack;
   frameCount = 0;
+  openUpvalues = nullptr;
 }
 
 void VM::runtimeError(const char *format, ...)
@@ -357,6 +389,40 @@ bool VM::callValue(Value callee, int argCount)
   }
   runtimeError("Can only call functions and classes.");
   return false;
+}
+
+ObjUpvalue *VM::captureUpvalue(Value *local)
+{
+  ObjUpvalue* prevUpvalue = nullptr;
+  ObjUpvalue* upvalue = openUpvalues;
+  while (upvalue != nullptr && upvalue->location > local) {
+    prevUpvalue = upvalue;
+    upvalue = upvalue->next;
+  }
+
+  if (upvalue != NULL && upvalue->location == local) {
+    return upvalue;
+  }
+
+  ObjUpvalue *createdUpvalue = new ObjUpvalue(local);
+  createdUpvalue->next = upvalue;
+
+  if (prevUpvalue == nullptr) {
+    openUpvalues = createdUpvalue;
+  } else {
+    prevUpvalue->next = createdUpvalue;
+  }
+  return createdUpvalue;
+}
+
+void VM::closeUpvalues(Value* last) {
+  while (openUpvalues != nullptr &&
+         openUpvalues->location >= last) {
+    ObjUpvalue* upvalue = openUpvalues;
+    upvalue->closed = *upvalue->location;
+    upvalue->location = &upvalue->closed;
+    openUpvalues = upvalue->next;
+  }
 }
 
 Value clockNative(int argCount, Value *args)
