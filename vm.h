@@ -41,9 +41,12 @@ struct CallFrame {
   InterpretResult run();
   void resetStack();
   void runtimeError(const char* format, ...) ;
+  void defineNative(const char* name, NativeFn function);
   void push(Value value);
   Value pop();
   Value peek(int distance);
   bool call(Function function, int argCount);
   bool callValue(Value callee, int argCount);
 } ;
+
+Value clockNative(int argCount, Value* args) ;

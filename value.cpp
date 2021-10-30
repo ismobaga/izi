@@ -4,6 +4,10 @@
 #include <iterator>
 #include <string>
 
+ObjNative::ObjNative(NativeFn native){
+  function = native;
+
+}
 
 ObjFunction::ObjFunction(){
   arity = 0;
@@ -29,6 +33,7 @@ void printValue(Value value) {
     case VAL_NIL: printf("nil"); break;
     case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
     case VAL_STRING: printf("%s", AS_CSTRING(value)); break;
+    case VAL_NATIVE: printf("<native fn>"); break;
     case VAL_FUNCTION: 
       if (AS_FUNCTION(value)->name == "") {
         printf("<script>");

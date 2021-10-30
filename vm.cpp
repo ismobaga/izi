@@ -4,7 +4,10 @@
 
 VM::VM()
 {
+
   resetStack();
+  defineNative("clock", clockNative);
+
 }
 
 InterpretResult VM::interpret(const char *source)
@@ -265,6 +268,15 @@ void VM::runtimeError(const char *format, ...)
   resetStack();
 }
 
+void VM::defineNative(const char* name, NativeFn function) {
+  push(STRING_VAL(copyString(name, (int)strlen(name))));
+  NativeFunction nf = std::make_shared<ObjNative>(function);
+  push(NATIVE_VAL(nf));
+  globals[AS_STRING(stack[0])] = stack[1];
+  pop();
+  pop();
+}
+
 void VM::push(Value value)
 {
   *stackTop = value;
@@ -305,9 +317,20 @@ bool VM::callValue(Value callee, int argCount) {
     switch (callee.type) {
       case VAL_FUNCTION: 
         return call(AS_FUNCTION(callee), argCount);
+      case VAL_NATIVE: {
+        NativeFn native = AS_NATIVEFN(callee);
+        Value result = native(argCount, stackTop - argCount);
+        stackTop -= argCount + 1;
+        push(result);
+        return true;
+      }
       default:
         break; // Non-callable object type.
   }
   runtimeError("Can only call functions and classes.");
   return false;
+}
+
+Value clockNative(int argCount, Value* args) {
+  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
