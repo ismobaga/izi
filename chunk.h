@@ -11,6 +11,11 @@ enum OpCode {
   TRUE,
   FALSE,
   POP,
+  GET_LOCAL,
+  SET_LOCAL,
+  GET_GLOBAL,
+  DEFINE_GLOBAL,
+  SET_GLOBAL,
   EQUAL,
   GREATER,
   LESS,
@@ -21,6 +26,7 @@ enum OpCode {
   NOT,
   NEGATE,
   PRINT,
+  JUMP_IF_FALSE,
   RETURN,
 
 } ;
@@ -41,5 +47,6 @@ class Chunk{
 
   // debug function
   int disassembleInstruction(int offset);
-  int constantInstruction(const char* name,                                int offset);
+  int constantInstruction(const char* name, int offset);
+  int byteInstruction(const char* name, int offset) ;
 };

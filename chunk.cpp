@@ -6,6 +6,13 @@ static int simpleInstruction(const char* name, int offset) {
 }
 
 
+int byteInstruction(const char* name, Chunk* chunk,
+                           int offset) {
+  uint8_t slot = chunk->code[offset + 1];
+  printf("%-16s %4d\n", name, slot);
+  return offset + 2; 
+}
+
 
 
 Chunk:: Chunk(){
@@ -49,6 +56,16 @@ Chunk:: Chunk(){
       return simpleInstruction("OP_FALSE", offset);
     case OpCode::POP:
       return simpleInstruction("OP_POP", offset);
+     case GET_LOCAL:
+      return byteInstruction("OP_GET_LOCAL", offset);
+    case SET_LOCAL:
+      return byteInstruction("OP_SET_LOCAL", offset);
+    case OpCode::GET_GLOBAL:
+      return constantInstruction("OP_GET_GLOBAL", offset);
+    case OpCode::DEFINE_GLOBAL:
+      return constantInstruction("OP_DEFINE_GLOBAL", offset);
+    case OpCode::SET_GLOBAL:
+      return constantInstruction("OP_SET_GLOBAL", offset);
     case EQUAL:
       return simpleInstruction("OP_EQUAL", offset);
     case GREATER:
@@ -84,4 +101,9 @@ Chunk:: Chunk(){
   printValue(constants[constant]);
   printf("'\n");
   return  offset + 2;
+}
+int Chunk::byteInstruction(const char* name, int offset) {
+  uint8_t slot = code[offset + 1];
+  printf("%-16s %4d\n", name, slot);
+  return offset + 2; 
 }

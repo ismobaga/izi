@@ -19,6 +19,9 @@
   std::vector<uint8_t>::iterator itip;
   Value stack[STACK_MAX];
   Value* stackTop;
+
+
+  std::unordered_map<std::string, Value> globals; /* hash table global variables*/
   // cache string in memoire chap. 20
   // Table strings;
 

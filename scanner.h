@@ -32,6 +32,11 @@ struct Token {
   const char* start;
   int length;
   int line;
+
+  bool operator==(const Token &b){
+    if (length != b.length) return false;
+    return memcmp(start, b.start, length) == 0;
+  }
 };
 
 /***

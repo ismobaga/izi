@@ -30,7 +30,21 @@ struct Value {
   using value_t = std::variant<bool, double, std::monostate, std::string>  ;
   value_t as; 
 
+  bool operator==(const Value& rhs) {
+    return as == rhs.as;
+}
+
+
 } ;
+struct ValueHash
+    {
+        std::size_t operator()(Value const& v) const noexcept
+        {
+            std::size_t h1 = std::hash<Value::value_t>{}(v.as);
+            // std::size_t h2 = std::hash<std::string>{}(s.last_name);
+            return h1;// ^ (h2 << 1); // or use boost::hash_combine
+        }
+    };
 // custom specialization of std::hash can be injected in namespace std
 namespace std
 {
@@ -47,7 +61,7 @@ namespace std
  
 
 // using Entry = std::pair<std::string, Value>;
-using Table = std::unordered_map<Value, Value>;
+using Table = std::unordered_map<Value, Value, ValueHash>;
 
 
 
