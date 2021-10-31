@@ -29,11 +29,14 @@ InterpretResult VM::run()
 {
   CallFrame *frame = &frames[frameCount - 1];
 
-#define READ_BYTE() *frame->ip++
+// #define READ_BYTE() *frame->ip++
+#define READ_BYTE() *frame->inc()
 #define READ_CONSTANT() \
   frame->closure->function->chunk->constants[READ_BYTE()]
+// #define READ_SHORT() \
+  // (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 #define READ_SHORT() \
-  (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+  (frame->index += 2, (uint16_t)((frame->getIp()[-2] << 8) | frame->getIp()[-1]))
 #define READ_STRING() \
   AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op)                    \
@@ -61,7 +64,8 @@ InterpretResult VM::run()
       printf(" ]");
     }
     printf("\n");
-    frame->closure->function->chunk->disassembleInstruction((int)(frame->ip - frame->closure->function->chunk->code.begin()));
+    // frame->closure->function->chunk->disassembleInstruction((int)(frame->ip - frame->closure->function->chunk->code.begin()));
+    frame->closure->function->chunk->disassembleInstruction((int)(frame->getIp() - frame->closure->function->chunk->code.data()));
 
 #endif
     uint8_t instruction;
@@ -209,20 +213,23 @@ InterpretResult VM::run()
     case JUMP:
     {
       uint16_t offset = READ_SHORT();
-      frame->ip += offset;
+      // frame->ip += offset;
+      frame->inc( offset);
       break;
     }
     case JUMP_IF_FALSE:
     {
       uint16_t offset = READ_SHORT();
       if (isFalsey(peek(0)))
-        frame->ip += offset;
+        // frame->ip += offset;
+        frame->inc(offset);
       break;
     }
     case LOOP:
     {
       uint16_t offset = READ_SHORT();
-      frame->ip -= offset;
+      // frame->ip -= offset;
+      frame->inc(-offset);
       break;
     }
     case CALL:
@@ -306,7 +313,8 @@ void VM::runtimeError(const char *format, ...)
   {
     CallFrame *frame = &frames[i];
     Function function = frame->closure->function;
-    size_t instruction = frame->ip - function->chunk->code.begin() - 1;
+    // size_t instruction = frame->ip - function->chunk->code.begin() - 1;
+    size_t instruction = frame->getIp() - function->chunk->code.data() - 1;
     fprintf(stderr, "[line %d] in ",
             function->chunk->lines[instruction]);
     if (function->name == "")
@@ -365,7 +373,8 @@ bool VM::call(Closure closure, int argCount)
 
   CallFrame *frame = &frames[frameCount++];
   frame->closure = closure;
-  frame->ip = closure->function->chunk->code.begin();
+  // frame->ip = closure->function->chunk->code.begin();
+  frame->index = 0;
   frame->slots = stackTop - argCount - 1;
   return true;
 }

@@ -14,12 +14,28 @@ enum InterpretResult
   INTERPRET_RUNTIME_ERROR
 };
 
-using IPType = std::vector<uint8_t>::iterator;
+using IPType = uint8_t* ;// std::vector<uint8_t>::iterator;
 
 struct CallFrame
 {
   Closure closure;
-  IPType ip;
+  // IPType ip;
+  int index;
+  inline IPType getIp(){
+    return closure->function->chunk->code.data() + index;
+  }
+  IPType inc(int i=1){
+    index+=i;
+    return closure->function->chunk->code.data() + index -1;
+  }
+  uint16_t readShort(){
+  index += 2;
+
+  
+
+   return (uint16_t)((getIp()[-2] << 8) | getIp()[-1]);
+
+  }
   Value *slots;
 };
 
