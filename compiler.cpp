@@ -232,9 +232,12 @@ void Compiler::endScope()
          current->locals[current->localCount - 1].depth >
              current->scopeDepth)
   {
-    if (current->locals[current->localCount - 1].isCaptured) {
+    if (current->locals[current->localCount - 1].isCaptured)
+    {
       emitByte(OpCode::CLOSE_UPVALUE);
-    } else {
+    }
+    else
+    {
       emitByte(OpCode::POP);
     }
     current->localCount--;
@@ -419,7 +422,8 @@ void Compiler::function(FunctionType type)
 
   Function func = endCompiler();
   emitBytes(OpCode::CLOSURE, makeConstant(FUNCTION_VAL(func)));
-  for (int i = 0; i < func->upvalueCount; i++) {
+  for (int i = 0; i < func->upvalueCount; i++)
+  {
     emitByte(cState.upvalues[i].isLocal ? 1 : 0);
     emitByte(cState.upvalues[i].index);
   }
@@ -828,16 +832,12 @@ void Compiler::parsePrecedence(Precedence precedence)
 // TODO : optimisser global value voir chapter21_global
 uint8_t Compiler::identifierConstant(Token *name)
 {
-  auto str = STRING_VAL(copyString(name->start,
-                                   name->length));
-  auto it = stringConstants.find(AS_STRING(str));
-  if (it != stringConstants.end())
-  {
-    return (uint8_t)AS_NUMBER(it->second);
-  }
-  uint8_t index = makeConstant(str);
-  stringConstants[AS_STRING(str)] = NUMBER_VAL((double)index);
-  return index;
+
+  return makeConstant(STRING_VAL(copyString(name->start,
+                                            name->length)));
+  // TODO : Optimizasion ne marche pas
+  // use <striing id> cache
+  
 }
 int Compiler::resolveLocal(CompilerState *compiler, Token *name)
 {
