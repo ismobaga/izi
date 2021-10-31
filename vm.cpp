@@ -166,8 +166,11 @@ InterpretResult VM::run()
         push(it->second);
         break;
       }
-      runtimeError("Undefined property '%s'.", name.c_str());
-      return INTERPRET_RUNTIME_ERROR;
+      if (!bindMethod(instance->klass, name))
+      {
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      break;
     }
     case SET_PROPERTY:
     {
@@ -322,6 +325,9 @@ InterpretResult VM::run()
     case CLASS:
       push(CLASS_VAL(std::make_shared<ObjClass>(READ_STRING())));
       break;
+    case METHOD:
+      defineMethod(READ_STRING());
+      break;
     }
   }
 
@@ -420,6 +426,11 @@ bool VM::callValue(Value callee, int argCount)
 {
   switch (callee.type)
   {
+  case VAL_BOUND_METHOD:
+  {
+    BoundMethod bound = AS_BOUND_METHOD(callee);
+    return call(bound->method, argCount);
+  }
   case VAL_CLASS:
   {
     Klass klass = AS_CLASS(callee);
@@ -441,6 +452,21 @@ bool VM::callValue(Value callee, int argCount)
   }
   runtimeError("Can only call functions and classes.");
   return false;
+}
+bool VM::bindMethod(Klass klass, String name)
+{
+  auto it = klass->methods.find(name);
+  if (it == klass->methods.end())
+  {
+    runtimeError("Undefined property '%s'.", name.c_str());
+    return false;
+  }
+
+  BoundMethod bound = std::make_shared<ObjBoundMethod>(peek(0),
+                                                       AS_CLOSURE(it->second));
+  pop();
+  push(BOUND_METHOD_VAL(bound));
+  return true;
 }
 
 ObjUpvalue *VM::captureUpvalue(Value *local)
@@ -482,6 +508,14 @@ void VM::closeUpvalues(Value *last)
     upvalue->location = &upvalue->closed;
     openUpvalues = upvalue->next;
   }
+}
+
+void VM::defineMethod(String name)
+{
+  Value method = peek(0);
+  Klass klass = AS_CLASS(peek(1));
+  klass->methods[name] = method;
+  pop();
 }
 
 Value clockNative(int argCount, Value *args)

@@ -118,6 +118,7 @@ public:
   void expression();
   void block();
   void function(FunctionType type);
+  void method() ;
   void classDeclaration();
   void funDeclaration();
   void varDeclaration();

@@ -123,6 +123,8 @@ int Chunk::disassembleInstruction(int offset)
     return simpleInstruction("OP_RETURN", offset);
   case OpCode::CLASS:
     return constantInstruction("OP_CLASS", offset);
+     case METHOD:
+      return constantInstruction("OP_METHOD", offset);
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;

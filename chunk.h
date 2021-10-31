@@ -39,6 +39,7 @@ enum OpCode
   CLOSE_UPVALUE,
   RETURN,
   CLASS,
+  METHOD,
 
 };
 

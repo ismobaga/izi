@@ -51,6 +51,11 @@ ObjInstance::ObjInstance(Klass k){
   klass = k;
 }
 
+ObjBoundMethod::ObjBoundMethod(Value receiver, Closure method){
+  this->receiver = receiver;
+  this->method = method;
+}
+
 inline std::ostream &operator<<(std::ostream &os, const Value &v)
 {
   std::visit(OutputVisitor(), v.as);

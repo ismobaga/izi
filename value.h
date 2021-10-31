@@ -15,6 +15,7 @@ struct ObjFunction;
 struct ObjClosure;
 struct ObjClass;
 struct ObjInstance;
+struct ObjBoundMethod;
 
 using Nil = std::monostate;
 using String = std::string;
@@ -23,6 +24,7 @@ using NativeFunction = std::shared_ptr<ObjNative>;
 using Closure = std::shared_ptr<ObjClosure>;
 using Klass = std::shared_ptr<ObjClass>;
 using Instance = std::shared_ptr<ObjInstance>;
+using BoundMethod = std::shared_ptr<ObjBoundMethod>;
 
 enum ValueType
 {
@@ -35,12 +37,15 @@ enum ValueType
   VAL_NATIVE,
   VAL_CLASS,
   VAL_INSTANCE,
+  VAL_BOUND_METHOD,
 };
 struct Value
 {
   ValueType type;
 
-  using value_t = std::variant<bool, double, Nil, String, Function, NativeFunction, Closure, Klass, Instance>;
+  using value_t = std::variant<bool, double, Nil, String,
+                               Function, NativeFunction,
+                               Closure, Klass, Instance, BoundMethod>;
   value_t as;
 
   template <class T>
@@ -108,18 +113,27 @@ struct ObjClosure
   ~ObjClosure();
 };
 
+using StringMap = std::unordered_map<String, Value>;
 struct ObjClass
 {
   std::string name;
+  StringMap methods;
   ObjClass(std::string name);
 };
 
-using StringMap = std::unordered_map<String, Value>;
-struct ObjInstance {
+struct ObjInstance
+{
   Klass klass;
-  StringMap fields; 
+  StringMap fields;
   ObjInstance(Klass k);
-} ;
+};
+
+struct ObjBoundMethod
+{
+  Value receiver;
+  Closure method;
+  ObjBoundMethod(Value receiver, Closure method );
+};
 
 // custom specialization of std::hash can be injected in namespace std
 struct ValueHash
@@ -156,7 +170,8 @@ struct ValueHash
   Value { VAL_CLASS, value }
 #define INSTANCE_VAL(value) \
   Value { VAL_INSTANCE, value }
-
+#define BOUND_METHOD_VAL(value) \
+  Value { VAL_BOUND_METHOD, value }
 
 #define IS_BOOL(value) (value.type == VAL_BOOL)
 #define IS_NIL(value) (value.type == VAL_NIL)
@@ -167,6 +182,7 @@ struct ValueHash
 #define IS_CLOSURE(value) (value.type == VAL_CLOSURE)
 #define IS_CLASS(value) (value.type == VAL_CLASS)
 #define IS_INSTANCE(value) (value.type == VAL_INSTANCE)
+#define IS_BOUND_METHOD(value) (value.type == VAL_BOUND_METHOD)
 
 #define AS_BOOL(value) (value.get<bool>())
 #define AS_NUMBER(value) (value.get<double>())
@@ -175,8 +191,9 @@ struct ValueHash
 #define AS_FUNCTION(value) (value.get<Function>())
 #define AS_NATIVEFN(value) (value.get<NativeFunction>()->function)
 #define AS_CLOSURE(value) (value.get<Closure>())
-#define AS_CLASS(value) (value.get <Klass>())
-#define AS_INSTANCE(value) (value.get <Instance>())
+#define AS_CLASS(value) (value.get<Klass>())
+#define AS_INSTANCE(value) (value.get<Instance>())
+#define AS_BOUND_METHOD(value) (value.get<BoundMethod>())
 
 struct OutputVisitor
 {
@@ -198,6 +215,7 @@ struct OutputVisitor
   }
   void operator()(const Klass &k) const { std::cout << k->name; }
   void operator()(const Instance &i) const { std::cout << i->klass->name << " instance"; }
+  void operator()(const BoundMethod &b) const { operator()(b->method->function);;}
 };
 
 std::ostream &operator<<(std::ostream &os, const Value &v);

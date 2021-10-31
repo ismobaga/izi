@@ -14,27 +14,27 @@ enum InterpretResult
   INTERPRET_RUNTIME_ERROR
 };
 
-using IPType = uint8_t* ;// std::vector<uint8_t>::iterator;
+using IPType = uint8_t *; // std::vector<uint8_t>::iterator;
 
 struct CallFrame
 {
   Closure closure;
   // IPType ip;
   int index;
-  inline IPType getIp(){
+  inline IPType getIp()
+  {
     return closure->function->chunk->code.data() + index;
   }
-  IPType inc(int i=1){
-    index+=i;
-    return closure->function->chunk->code.data() + index -1;
+  IPType inc(int i = 1)
+  {
+    index += i;
+    return closure->function->chunk->code.data() + index - 1;
   }
-  uint16_t readShort(){
-  index += 2;
+  uint16_t readShort()
+  {
+    index += 2;
 
-  
-
-   return (uint16_t)((getIp()[-2] << 8) | getIp()[-1]);
-
+    return (uint16_t)((getIp()[-2] << 8) | getIp()[-1]);
   }
   Value *slots;
 };
@@ -50,7 +50,7 @@ struct VM
   std::unordered_map<std::string, Value> globals; /* hash table global variables*/
   // cache string in memoire chap. 20
   // Table strings;
-  ObjUpvalue* openUpvalues;
+  ObjUpvalue *openUpvalues;
 
   Compiler compiler;
 
@@ -67,8 +67,10 @@ struct VM
   Value peek(int distance);
   bool call(Closure closure, int argCount);
   bool callValue(Value callee, int argCount);
-  ObjUpvalue* captureUpvalue(Value* local) ;
-  void closeUpvalues(Value* last) ;
+  bool bindMethod(Klass klass, String name);
+  ObjUpvalue *captureUpvalue(Value *local);
+  void closeUpvalues(Value *last);
+  void defineMethod(String name);
 };
 
 Value clockNative(int argCount, Value *args);

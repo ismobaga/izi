@@ -18,6 +18,7 @@
 - class instanciation
 - class get field
 - class set field
+- call methods
 ```js
 var iz = 21;
 var b = "dsjsdjs";

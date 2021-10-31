@@ -297,10 +297,13 @@ void Compiler::dot(bool canAssign)
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
   uint8_t name = identifierConstant(&parser.previous);
 
-  if (canAssign && match(TOKEN_EQUAL)) {
+  if (canAssign && match(TOKEN_EQUAL))
+  {
     expression();
     emitBytes(OpCode::SET_PROPERTY, name);
-  } else {
+  }
+  else
+  {
     emitBytes(OpCode::GET_PROPERTY, name);
   }
 }
@@ -441,17 +444,32 @@ void Compiler::function(FunctionType type)
     emitByte(cState.upvalues[i].index);
   }
 }
+void Compiler::method()
+{
+  consume(TOKEN_IDENTIFIER, "Expect method name.");
+  uint8_t constant = identifierConstant(&parser.previous);
+  FunctionType type = TYPE_FUNCTION;
+  function(type);
+  emitBytes(OpCode::METHOD, constant);
+}
 
 void Compiler::classDeclaration()
 {
   consume(TOKEN_IDENTIFIER, "Expect class name.");
+  Token className = parser.previous;
   uint8_t nameConstant = identifierConstant(&parser.previous);
   declareVariable();
 
   emitBytes(OpCode::CLASS, nameConstant);
   defineVariable(nameConstant);
 
+  namedVariable(className, false);
   consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+  while (!parser.check(TOKEN_RIGHT_BRACE) && !parser.check(TOKEN_EOF))
+  {
+    method();
+  }
+  emitByte(OpCode::POP);
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
 }
 void Compiler::funDeclaration()
