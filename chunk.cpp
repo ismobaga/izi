@@ -67,6 +67,10 @@ int Chunk::disassembleInstruction(int offset)
     return byteInstruction("OP_GET_UPVALUE", offset);
   case SET_UPVALUE:
     return byteInstruction("OP_SET_UPVALUE", offset);
+  case GET_PROPERTY:
+    return constantInstruction("OP_GET_PROPERTY", offset);
+  case SET_PROPERTY:
+    return constantInstruction("OP_SET_PROPERTY", offset);
   case EQUAL:
     return simpleInstruction("OP_EQUAL", offset);
   case GREATER:
@@ -114,9 +118,11 @@ int Chunk::disassembleInstruction(int offset)
     return offset;
   }
   case CLOSE_UPVALUE:
-      return simpleInstruction("OP_CLOSE_UPVALUE", offset);
+    return simpleInstruction("OP_CLOSE_UPVALUE", offset);
   case OpCode::RETURN:
     return simpleInstruction("OP_RETURN", offset);
+  case OpCode::CLASS:
+    return constantInstruction("OP_CLASS", offset);
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;

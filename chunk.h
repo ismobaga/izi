@@ -19,6 +19,8 @@ enum OpCode
   SET_GLOBAL,
   GET_UPVALUE,
   SET_UPVALUE,
+  GET_PROPERTY,
+  SET_PROPERTY,
   EQUAL,
   GREATER,
   LESS,
@@ -36,6 +38,7 @@ enum OpCode
   CLOSURE,
   CLOSE_UPVALUE,
   RETURN,
+  CLASS,
 
 };
 

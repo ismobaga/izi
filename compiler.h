@@ -107,6 +107,7 @@ public:
   void endScope();
   void binary();
   void call();
+  void dot(bool canAssign);
   void literal();
   void grouping();
   void number();
@@ -117,6 +118,7 @@ public:
   void expression();
   void block();
   void function(FunctionType type);
+  void classDeclaration();
   void funDeclaration();
   void varDeclaration();
   void expressionStatement();

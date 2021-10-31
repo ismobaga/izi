@@ -2,15 +2,22 @@
 
 
 ## Mot cle 
-`var, if, switch, case, default while for, print, fun, return`
+`var, if, switch, case, default while for, print, class, fun, return`
 ## Types
-`number, string`
+`number, string, function, class`
 ## Operators
 - `number` : `+, -, *, /`
 - `string` : `+`(concat)
 
 
 ## Features
+- function def
+- function call
+- closure 
+- class definition
+- class instanciation
+- class get field
+- class set field
 ```js
 var iz = 21;
 var b = "dsjsdjs";
@@ -38,6 +45,14 @@ fun sum(a, b, c) {
 }
 
 print 4 sum(5, 6, 7);
+
+class A{};
+
+print A;
+var a = A();
+a.b = "hello";
+
+print a.b;
 ```
 
 

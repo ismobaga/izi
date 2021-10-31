@@ -149,6 +149,40 @@ InterpretResult VM::run()
       *frame->closure->upvalues[slot]->location = peek(0);
       break;
     }
+    case GET_PROPERTY:
+    {
+      if (!IS_INSTANCE(peek(0)))
+      {
+        runtimeError("Only instances have properties.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      Instance instance = AS_INSTANCE(peek(0));
+      String name = READ_STRING();
+
+      auto it = instance->fields.find(name);
+      if (it != instance->fields.end())
+      {
+        pop(); // Instance.
+        push(it->second);
+        break;
+      }
+      runtimeError("Undefined property '%s'.", name.c_str());
+      return INTERPRET_RUNTIME_ERROR;
+    }
+    case SET_PROPERTY:
+    {
+      if (!IS_INSTANCE(peek(1)))
+      {
+        runtimeError("Only instances have fields.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      Instance instance = AS_INSTANCE(peek(1));
+      instance->fields[READ_STRING()] = peek(0);
+      Value value = pop();
+      pop();
+      push(value);
+      break;
+    }
     case EQUAL:
     {
       Value b = pop();
@@ -214,7 +248,7 @@ InterpretResult VM::run()
     {
       uint16_t offset = READ_SHORT();
       // frame->ip += offset;
-      frame->inc( offset);
+      frame->inc(offset);
       break;
     }
     case JUMP_IF_FALSE:
@@ -265,9 +299,9 @@ InterpretResult VM::run()
       break;
     }
     case CLOSE_UPVALUE:
-        closeUpvalues(stackTop - 1);
-        pop();
-        break;
+      closeUpvalues(stackTop - 1);
+      pop();
+      break;
 
     case OpCode::RETURN:
     {
@@ -285,6 +319,9 @@ InterpretResult VM::run()
       frame = &frames[frameCount - 1];
       break;
     }
+    case CLASS:
+      push(CLASS_VAL(std::make_shared<ObjClass>(READ_STRING())));
+      break;
     }
   }
 
@@ -383,6 +420,12 @@ bool VM::callValue(Value callee, int argCount)
 {
   switch (callee.type)
   {
+  case VAL_CLASS:
+  {
+    Klass klass = AS_CLASS(callee);
+    stackTop[-argCount - 1] = INSTANCE_VAL(std::make_shared<ObjInstance>(klass));
+    return true;
+  }
   case VAL_CLOSURE:
     return call(AS_CLOSURE(callee), argCount);
   case VAL_NATIVE:
@@ -402,32 +445,39 @@ bool VM::callValue(Value callee, int argCount)
 
 ObjUpvalue *VM::captureUpvalue(Value *local)
 {
-  ObjUpvalue* prevUpvalue = nullptr;
-  ObjUpvalue* upvalue = openUpvalues;
-  while (upvalue != nullptr && upvalue->location > local) {
+  ObjUpvalue *prevUpvalue = nullptr;
+  ObjUpvalue *upvalue = openUpvalues;
+  while (upvalue != nullptr && upvalue->location > local)
+  {
     prevUpvalue = upvalue;
     upvalue = upvalue->next;
   }
 
-  if (upvalue != NULL && upvalue->location == local) {
+  if (upvalue != NULL && upvalue->location == local)
+  {
     return upvalue;
   }
 
   ObjUpvalue *createdUpvalue = new ObjUpvalue(local);
   createdUpvalue->next = upvalue;
 
-  if (prevUpvalue == nullptr) {
+  if (prevUpvalue == nullptr)
+  {
     openUpvalues = createdUpvalue;
-  } else {
+  }
+  else
+  {
     prevUpvalue->next = createdUpvalue;
   }
   return createdUpvalue;
 }
 
-void VM::closeUpvalues(Value* last) {
+void VM::closeUpvalues(Value *last)
+{
   while (openUpvalues != nullptr &&
-         openUpvalues->location >= last) {
-    ObjUpvalue* upvalue = openUpvalues;
+         openUpvalues->location >= last)
+  {
+    ObjUpvalue *upvalue = openUpvalues;
     upvalue->closed = *upvalue->location;
     upvalue->location = &upvalue->closed;
     openUpvalues = upvalue->next;

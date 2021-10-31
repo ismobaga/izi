@@ -43,6 +43,14 @@ ObjClosure::~ObjClosure(){
   delete[] upvalues;
 }
 
+ObjClass::ObjClass(std::string name){
+  this->name = name;
+}
+
+ObjInstance::ObjInstance(Klass k){
+  klass = k;
+}
+
 inline std::ostream &operator<<(std::ostream &os, const Value &v)
 {
   std::visit(OutputVisitor(), v.as);

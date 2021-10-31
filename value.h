@@ -13,10 +13,17 @@ class Chunk;
 struct ObjNative;
 struct ObjFunction;
 struct ObjClosure;
+struct ObjClass;
+struct ObjInstance;
 
+using Nil = std::monostate;
+using String = std::string;
 using Function = std::shared_ptr<ObjFunction>;
 using NativeFunction = std::shared_ptr<ObjNative>;
 using Closure = std::shared_ptr<ObjClosure>;
+using Klass = std::shared_ptr<ObjClass>;
+using Instance = std::shared_ptr<ObjInstance>;
+
 enum ValueType
 {
   VAL_NIL,
@@ -26,12 +33,14 @@ enum ValueType
   VAL_FUNCTION,
   VAL_CLOSURE,
   VAL_NATIVE,
+  VAL_CLASS,
+  VAL_INSTANCE,
 };
 struct Value
 {
   ValueType type;
 
-  using value_t = std::variant<bool, double, std::monostate, std::string, Function, NativeFunction, Closure>;
+  using value_t = std::variant<bool, double, Nil, String, Function, NativeFunction, Closure, Klass, Instance>;
   value_t as;
 
   template <class T>
@@ -66,11 +75,12 @@ struct ObjNative
   ObjNative(NativeFn native);
 };
 
-struct ObjUpvalue {
-  Value* location;
+struct ObjUpvalue
+{
+  Value *location;
   Value closed;
-  struct ObjUpvalue* next;
-  ObjUpvalue(Value* slot);
+  struct ObjUpvalue *next;
+  ObjUpvalue(Value *slot);
 };
 
 struct ObjFunction
@@ -92,11 +102,24 @@ enum FunctionType
 struct ObjClosure
 {
   Function function;
-  ObjUpvalue** upvalues;
+  ObjUpvalue **upvalues;
   int upvalueCount;
   ObjClosure(Function fn);
   ~ObjClosure();
 };
+
+struct ObjClass
+{
+  std::string name;
+  ObjClass(std::string name);
+};
+
+using StringMap = std::unordered_map<String, Value>;
+struct ObjInstance {
+  Klass klass;
+  StringMap fields; 
+  ObjInstance(Klass k);
+} ;
 
 // custom specialization of std::hash can be injected in namespace std
 struct ValueHash
@@ -109,7 +132,8 @@ struct ValueHash
 };
 
 // using Entry = std::pair<std::string, Value>;
-using Table = std::unordered_map<Value, Value, ValueHash>;
+
+// using Table = std::unordered_map<Value, Value, ValueHash>;
 
 #define BOOL_VAL(value) \
   Value { VAL_BOOL, value }
@@ -128,6 +152,11 @@ using Table = std::unordered_map<Value, Value, ValueHash>;
   Value { VAL_NATIVE, value }
 #define CLOSURE_VAL(value) \
   Value { VAL_CLOSURE, value }
+#define CLASS_VAL(value) \
+  Value { VAL_CLASS, value }
+#define INSTANCE_VAL(value) \
+  Value { VAL_INSTANCE, value }
+
 
 #define IS_BOOL(value) (value.type == VAL_BOOL)
 #define IS_NIL(value) (value.type == VAL_NIL)
@@ -136,19 +165,18 @@ using Table = std::unordered_map<Value, Value, ValueHash>;
 #define IS_FUNCTION(value) (value.type == VAL_FUNCTION)
 #define IS_NATIVE(value) (value.type == VAL_NATIVE)
 #define IS_CLOSURE(value) (value.type == VAL_CLOSURE)
+#define IS_CLASS(value) (value.type == VAL_CLASS)
+#define IS_INSTANCE(value) (value.type == VAL_INSTANCE)
 
 #define AS_BOOL(value) (value.get<bool>())
 #define AS_NUMBER(value) (value.get<double>())
-// #define AS_NUMBER(value) (std::get<double>(value.as))
-// #define AS_STRING(value) (std::get<std::string>(value.as))
 #define AS_STRING(value) (value.get<std::string>())
-// #define AS_CSTRING(value) (std::get<std::string>(value.as).c_str())
 #define AS_CSTRING(value) (value.get<std::string>().c_str())
-// #define AS_FUNCTION(value) (std::get<Function>(value.as))
 #define AS_FUNCTION(value) (value.get<Function>())
-// #define AS_NATIVEFN(value) (std::get<NativeFunction>(value.as)->function)
 #define AS_NATIVEFN(value) (value.get<NativeFunction>()->function)
 #define AS_CLOSURE(value) (value.get<Closure>())
+#define AS_CLASS(value) (value.get <Klass>())
+#define AS_INSTANCE(value) (value.get <Instance>())
 
 struct OutputVisitor
 {
@@ -160,7 +188,7 @@ struct OutputVisitor
   void operator()(const Closure &c) const
   {
     operator()(c->function);
-  };
+  }
   void operator()(const Function &f) const
   {
     if (f->name != "")
@@ -168,6 +196,8 @@ struct OutputVisitor
     else
       std::cout << "<srcipt>";
   }
+  void operator()(const Klass &k) const { std::cout << k->name; }
+  void operator()(const Instance &i) const { std::cout << i->klass->name << " instance"; }
 };
 
 std::ostream &operator<<(std::ostream &os, const Value &v);
