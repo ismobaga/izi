@@ -61,6 +61,8 @@ int Chunk::disassembleInstruction(int offset) {
             return constantInstruction("OP_GET_PROPERTY", offset);
         case SET_PROPERTY:
             return constantInstruction("OP_SET_PROPERTY", offset);
+        case GET_SUPER:
+            return constantInstruction("OP_GET_SUPER", offset);
         case EQUAL:
             return simpleInstruction("OP_EQUAL", offset);
         case GREATER:
@@ -113,6 +115,8 @@ int Chunk::disassembleInstruction(int offset) {
             return constantInstruction("OP_CLASS", offset);
         case METHOD:
             return constantInstruction("OP_METHOD", offset);
+        case INHERIT:
+            return simpleInstruction("OP_INHERIT", offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

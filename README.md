@@ -2,12 +2,13 @@
 
 
 ## Mot cle 
-`var, if, switch, case, default while for, print, class, fun, return`
+`var, if, switch, case, default while for, print, class, fun, return, this, super, new`
 ## Types
 `number, string, function, class`
 ## Operators
 - `number` : `+, -, *, /`
 - `string` : `+`(concat)
+- `class`  : `<` inheritance
 
 
 ## Features
@@ -19,6 +20,9 @@
 - class get field
 - class set field
 - call methods
+- this 
+- super class
+- super methodscall
 ```js
 var iz = 21;
 var b = "dsjsdjs";
@@ -48,7 +52,7 @@ fun sum(a, b, c) {
 print 4 sum(5, 6, 7);
 
 class A{};
-
+class B < A{}
 print A;
 var a = A();
 a.b = "hello";
@@ -56,8 +60,15 @@ a.b = "hello";
 print a.b;
 ```
 
-
-
+# TODO 
+- [ ] Opimizaion method call
+- [ ] debugger (code printing)
+- [ ] add importing modules
+- [ ] add a core module (list, map, io, ...)
+- [ ] string interpolation
+- [ ] thread
+- [ ] gc
+- [ ] Dynamically load C libraries
 ## Tools
 - `prremake`
 - `vcode-premake`

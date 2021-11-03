@@ -165,6 +165,15 @@ InterpretResult VM::run() {
                 push(value);
                 break;
             }
+            case GET_SUPER: {
+                String name = READ_STRING();
+                Klass superclass = AS_CLASS(pop());
+
+                if (!bindMethod(superclass, name)) {
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                break;
+            }
             case EQUAL: {
                 Value b = pop();
                 Value a = pop();
@@ -286,6 +295,20 @@ InterpretResult VM::run() {
             case METHOD:
                 defineMethod(READ_STRING());
                 break;
+            case INHERIT: {
+                Value superclass = peek(1);
+                if (!IS_CLASS(superclass)) {
+                    runtimeError("Superclass must be a class.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                Klass subclass = AS_CLASS(peek(0));
+                for (auto [key, value] : AS_CLASS(superclass)->methods) {
+                    subclass->methods[key] = value;
+                }
+
+                pop();  // Subclass.
+                break;
+            }
         }
     }
 

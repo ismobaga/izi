@@ -24,6 +24,7 @@ enum OpCode {
     SET_UPVALUE,
     GET_PROPERTY,
     SET_PROPERTY,
+    GET_SUPER,
     EQUAL,
     GREATER,
     LESS,
@@ -43,6 +44,7 @@ enum OpCode {
     RETURN,
     CLASS,
     METHOD,
+    INHERIT,
 
 };
 
