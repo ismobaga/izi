@@ -1,13 +1,14 @@
 #pragma once
 
-#include "common.h"
-#include <variant>
-#include <iostream>
-#include <string>
-#include <iterator>
-#include <unordered_map>
 #include <functional>
+#include <iostream>
+#include <iterator>
 #include <memory>
+#include <string>
+#include <unordered_map>
+#include <variant>
+
+#include "common.h"
 
 class Chunk;
 struct ObjNative;
@@ -26,123 +27,112 @@ using Klass = std::shared_ptr<ObjClass>;
 using Instance = std::shared_ptr<ObjInstance>;
 using BoundMethod = std::shared_ptr<ObjBoundMethod>;
 
-enum ValueType
-{
-  VAL_NIL,
-  VAL_BOOL,
-  VAL_NUMBER,
-  VAL_STRING,
-  VAL_FUNCTION,
-  VAL_CLOSURE,
-  VAL_NATIVE,
-  VAL_CLASS,
-  VAL_INSTANCE,
-  VAL_BOUND_METHOD,
+enum ValueType {
+    VAL_NIL,
+    VAL_BOOL,
+    VAL_NUMBER,
+    VAL_STRING,
+    VAL_FUNCTION,
+    VAL_CLOSURE,
+    VAL_NATIVE,
+    VAL_CLASS,
+    VAL_INSTANCE,
+    VAL_BOUND_METHOD,
 };
-struct Value
-{
-  ValueType type;
 
-  using value_t = std::variant<bool, double, Nil, String,
-                               Function, NativeFunction,
-                               Closure, Klass, Instance, BoundMethod>;
-  value_t as;
+/**
+ * @brief IZI Value type
+ * 
+ */
+struct Value {
+    ValueType type;
 
-  template <class T>
-  T get()
-  {
-    T val;
+    using value_t = std::variant<bool, double, Nil, String,
+                                 Function, NativeFunction,
+                                 Closure, Klass, Instance, BoundMethod>;
+    value_t as;
 
-    try
-    {
-      val = std::get<T>(as); // w contains int, not float: will throw
+    template <class T>
+    T get() {
+        T val;
+
+        try {
+            val = std::get<T>(as);  // w contains int, not float: will throw
+        } catch (const std::bad_variant_access &ex) {
+            std::cout << "Execption :" << ex.what() << " : " << typeid(T).name() << '\n';
+        }
+
+        return val;
     }
-    catch (const std::bad_variant_access &ex)
-    {
 
-      std::cout << "Execption :" << ex.what() << " : " << typeid(T).name() << '\n';
+    bool operator==(const Value &rhs) {
+        return as == rhs.as;
     }
-
-    return val;
-  }
-
-  bool operator==(const Value &rhs)
-  {
-    return as == rhs.as;
-  }
 };
 
 typedef Value (*NativeFn)(int argCount, Value *args);
 
-struct ObjNative
-{
-  NativeFn function;
-  ObjNative(NativeFn native);
+struct ObjNative {
+    NativeFn function;
+    ObjNative(NativeFn native);
 };
 
-struct ObjUpvalue
-{
-  Value *location;
-  Value closed;
-  struct ObjUpvalue *next;
-  ObjUpvalue(Value *slot);
+struct ObjUpvalue {
+    Value *location;
+    Value closed;
+    struct ObjUpvalue *next;
+    ObjUpvalue(Value *slot);
 };
 
-struct ObjFunction
-{
-  int arity;
-  Chunk *chunk;
-  std::string name;
-  int upvalueCount;
-  ObjFunction();
-  ~ObjFunction();
+struct ObjFunction {
+    int arity;
+    Chunk *chunk;
+    std::string name;
+    int upvalueCount;
+    ObjFunction();
+    ~ObjFunction();
 };
 
-enum FunctionType
-{
-  TYPE_FUNCTION,
-  TYPE_SCRIPT
+enum FunctionType {
+    TYPE_FUNCTION,
+    TYPE_METHOD,
+    TYPE_SCRIPT,
+    TYPE_CONSTRUCTOR,
 };
 
-struct ObjClosure
-{
-  Function function;
-  ObjUpvalue **upvalues;
-  int upvalueCount;
-  ObjClosure(Function fn);
-  ~ObjClosure();
+struct ObjClosure {
+    Function function;
+    ObjUpvalue **upvalues;
+    int upvalueCount;
+    ObjClosure(Function fn);
+    ~ObjClosure();
 };
 
 using StringMap = std::unordered_map<String, Value>;
-struct ObjClass
-{
-  std::string name;
-  StringMap methods;
-  ObjClass(std::string name);
+struct ObjClass {
+    std::string name;
+    StringMap methods;
+    ObjClass(std::string name);
 };
 
-struct ObjInstance
-{
-  Klass klass;
-  StringMap fields;
-  ObjInstance(Klass k);
+struct ObjInstance {
+    Klass klass;
+    StringMap fields;
+    ObjInstance(Klass k);
 };
 
-struct ObjBoundMethod
-{
-  Value receiver;
-  Closure method;
-  ObjBoundMethod(Value receiver, Closure method );
+struct ObjBoundMethod {
+    Value receiver;
+    Closure method;
+    ObjBoundMethod(Value receiver, Closure method);
 };
 
 // custom specialization of std::hash can be injected in namespace std
-struct ValueHash
-{
-  std::size_t operator()(Value const &v) const noexcept
-  {
-    std::size_t h1 = std::hash<Value::value_t>{}(v.as);
-    return h1;
-  }
+struct ValueHash {
+    std::size_t operator()(Value const &v) const noexcept {
+        std::size_t h1 = std::hash<Value::value_t>{}(v.as);
+        return h1;
+    }
 };
 
 // using Entry = std::pair<std::string, Value>;
@@ -150,28 +140,27 @@ struct ValueHash
 // using Table = std::unordered_map<Value, Value, ValueHash>;
 
 #define BOOL_VAL(value) \
-  Value { VAL_BOOL, value }
-#define NIL_VAL \
-  Value         \
-  {             \
-    VAL_NIL, {} \
-  }
+    Value { VAL_BOOL, value }
+#define NIL_VAL     \
+    Value {         \
+        VAL_NIL, {} \
+    }
 #define NUMBER_VAL(value) \
-  Value { VAL_NUMBER, value }
+    Value { VAL_NUMBER, value }
 #define STRING_VAL(value) \
-  Value { VAL_STRING, value }
+    Value { VAL_STRING, value }
 #define FUNCTION_VAL(value) \
-  Value { VAL_FUNCTION, value }
+    Value { VAL_FUNCTION, value }
 #define NATIVE_VAL(value) \
-  Value { VAL_NATIVE, value }
+    Value { VAL_NATIVE, value }
 #define CLOSURE_VAL(value) \
-  Value { VAL_CLOSURE, value }
+    Value { VAL_CLOSURE, value }
 #define CLASS_VAL(value) \
-  Value { VAL_CLASS, value }
+    Value { VAL_CLASS, value }
 #define INSTANCE_VAL(value) \
-  Value { VAL_INSTANCE, value }
+    Value { VAL_INSTANCE, value }
 #define BOUND_METHOD_VAL(value) \
-  Value { VAL_BOUND_METHOD, value }
+    Value { VAL_BOUND_METHOD, value }
 
 #define IS_BOOL(value) (value.type == VAL_BOOL)
 #define IS_NIL(value) (value.type == VAL_NIL)
@@ -195,27 +184,27 @@ struct ValueHash
 #define AS_INSTANCE(value) (value.get<Instance>())
 #define AS_BOUND_METHOD(value) (value.get<BoundMethod>())
 
-struct OutputVisitor
-{
-  void operator()(const double d) const { std::cout << d; }
-  void operator()(const bool b) const { std::cout << (b ? "true" : "false"); }
-  void operator()(const std::monostate n) const { std::cout << "nil"; }
-  void operator()(const std::string &s) const { std::cout << s; }
-  void operator()(const NativeFunction &n) const { std::cout << "<native fn>"; }
-  void operator()(const Closure &c) const
-  {
-    operator()(c->function);
-  }
-  void operator()(const Function &f) const
-  {
-    if (f->name != "")
-      std::cout << "<fn " << f->name << ">";
-    else
-      std::cout << "<srcipt>";
-  }
-  void operator()(const Klass &k) const { std::cout << k->name; }
-  void operator()(const Instance &i) const { std::cout << i->klass->name << " instance"; }
-  void operator()(const BoundMethod &b) const { operator()(b->method->function);;}
+struct OutputVisitor {
+    void operator()(const double d) const { std::cout << d; }
+    void operator()(const bool b) const { std::cout << (b ? "true" : "false"); }
+    void operator()(const std::monostate n) const { std::cout << "nil"; }
+    void operator()(const std::string &s) const { std::cout << s; }
+    void operator()(const NativeFunction &n) const { std::cout << "<native fn>"; }
+    void operator()(const Closure &c) const {
+        operator()(c->function);
+    }
+    void operator()(const Function &f) const {
+        if (f->name != "")
+            std::cout << "<fn " << f->name << ">";
+        else
+            std::cout << "<srcipt>";
+    }
+    void operator()(const Klass &k) const { std::cout << k->name; }
+    void operator()(const Instance &i) const { std::cout << i->klass->name << " instance"; }
+    void operator()(const BoundMethod &b) const {
+        operator()(b->method->function);
+        ;
+    }
 };
 
 std::ostream &operator<<(std::ostream &os, const Value &v);
