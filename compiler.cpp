@@ -394,7 +394,7 @@ void Compiler::method() {
     consume(TOKEN_IDENTIFIER, "Expect method name.");
     uint8_t constant = identifierConstant(&parser.previous);
     FunctionType type = TYPE_METHOD;
-    if (parser.previous.length == 4 &&
+    if (parser.previous.length == 3 &&
         memcmp(parser.previous.start, "new", 3) == 0) {
         type = TYPE_CONSTRUCTOR;
     }
