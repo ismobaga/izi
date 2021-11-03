@@ -61,3 +61,6 @@ print a.b;
 ## Tools
 - `prremake`
 - `vcode-premake`
+
+## Resources
+[notes.md](notes.md)
