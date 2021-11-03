@@ -268,7 +268,16 @@ void Compiler::dot(bool canAssign) {
     if (canAssign && match(TOKEN_EQUAL)) {
         expression();
         emitBytes(OpCode::SET_PROPERTY, name);
-    } else {
+
+    }
+    /*
+    // Add INVOKE : Optimize get method and call method
+    else if (match(TOKEN_LEFT_PAREN)) {
+    uint8_t argCount = argumentList();
+    emitBytes(OP_INVOKE, name);
+    emitByte(argCount);
+    */
+    else {
         emitBytes(OpCode::GET_PROPERTY, name);
     }
 }
@@ -326,6 +335,26 @@ void Compiler::namedVariable(Token name, bool canAssign) {
 }
 void Compiler::variable(bool canAssign) {
     namedVariable(parser.previous, canAssign);
+}
+Token Compiler::syntheticToken(const char *text) {
+    Token token;
+    token.start = text;
+    token.length = (int)strlen(text);
+    return token;
+}
+void Compiler::super_() {
+    if (currentClass == NULL) {
+        error("Can't use 'super' outside of a class.");
+    } else if (!currentClass->hasSuperclass) {
+        error("Can't use 'super' in a class with no superclass.");
+    }
+    consume(TOKEN_DOT, "Expect '.' after 'super'.");
+    consume(TOKEN_IDENTIFIER, "Expect superclass method name.");
+    uint8_t name = identifierConstant(&parser.previous);
+
+    namedVariable(syntheticToken("this"), false);
+    namedVariable(syntheticToken("super"), false);
+    emitBytes(OpCode::GET_SUPER, name);
 }
 void Compiler::this_() {
     if (currentClass == NULL) {
@@ -412,8 +441,23 @@ void Compiler::classDeclaration() {
     defineVariable(nameConstant);
 
     ClassCompiler classCompiler;
+    classCompiler.hasSuperclass = false;
     classCompiler.enclosing = currentClass;
     currentClass = &classCompiler;
+
+    if (match(TOKEN_LESS)) {
+        consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+        variable(false);
+        if (className == parser.previous) {
+            error("A class can't inherit from itself.");
+        }
+        beginScope();
+        addLocal(syntheticToken("super"));
+        defineVariable(0);
+        namedVariable(className, false);
+        emitByte(OpCode::INHERIT);
+        classCompiler.hasSuperclass = true;
+    }
 
     namedVariable(className, false);
     consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
@@ -421,6 +465,9 @@ void Compiler::classDeclaration() {
         method();
     }
     emitByte(OpCode::POP);
+    if (classCompiler.hasSuperclass) {
+        endScope();
+    }
     currentClass = currentClass->enclosing;
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
 }
@@ -690,6 +737,7 @@ ParseRule *Compiler::getRule(TokenType type) {
     auto string = [this](bool canAssign) { this->string(); };
     auto literal = [this](bool canAssign) { this->literal(); };
     auto variable = [this](bool canAssign) { this->variable(canAssign); };
+    auto super_ = [this](bool canAssign) { this->super_(); };
     auto this_ = [this](bool canAssign) { this->this_(); };
     auto and_ = [this](bool canAssign) { this->and_(); };
     auto or_ = [this](bool canAssign) { this->or_(); };
@@ -727,7 +775,7 @@ ParseRule *Compiler::getRule(TokenType type) {
         [TOKEN_OR] = {NULL, or_, PREC_OR},
         [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
         [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
-        [TOKEN_SUPER] = {NULL, NULL, PREC_NONE},
+        [TOKEN_SUPER] = {super_, NULL, PREC_NONE},
         [TOKEN_THIS] = {this_, NULL, PREC_NONE},
         [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
         [TOKEN_VAR] = {NULL, NULL, PREC_NONE},

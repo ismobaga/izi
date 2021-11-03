@@ -72,6 +72,7 @@ struct CompilerState {
 };
 struct ClassCompiler {
     struct ClassCompiler *enclosing;
+    bool hasSuperclass;
 };
 
 class Compiler {
@@ -112,6 +113,8 @@ class Compiler {
     void string();
     void namedVariable(Token name, bool canAssign);
     void variable(bool canAssign);
+    Token syntheticToken(const char *text);
+    void super_();
     void this_();
     void unary();
     void expression();
