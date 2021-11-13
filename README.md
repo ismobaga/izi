@@ -63,7 +63,10 @@ print a.b;
 # TODO 
 - [ ] Opimizaion method call
 - [ ] debugger (code printing)
-- [ ] add importing modules
+- [-] add importing modules
+  - [x] keyword 
+  - [x] generate OpCode
+  - [ ] get module file correct path
 - [ ] add a core module (list, map, io, ...)
 - [ ] string interpolation
 - [ ] thread

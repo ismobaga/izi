@@ -46,6 +46,9 @@ struct VM {
     // Table strings;
     ObjUpvalue *openUpvalues;
 
+    std::unordered_map<String, Value> modules;
+    Module lastModule;
+
     Compiler compiler;
 
     String constructName;
@@ -67,6 +70,36 @@ struct VM {
     ObjUpvalue *captureUpvalue(Value *local);
     void closeUpvalues(Value *last);
     void defineMethod(String name);
+    Value importModule(Value name);
+    Closure compileInModule(Value name, const char *source);
+    Module getModule(Value name);
 };
 
 Value clockNative(int argCount, Value *args);
+
+static char* readFile(const char* path) {
+    FILE* file = fopen(path, "rb");
+    if (file == NULL) {
+        fprintf(stderr, "Could not open file \"%s\".\n", path);
+        exit(74);
+    }
+
+    fseek(file, 0L, SEEK_END);
+    size_t fileSize = ftell(file);
+    rewind(file);
+
+    char* buffer = (char*)malloc(fileSize + 1);
+    if (buffer == NULL) {
+        fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
+        exit(74);
+    }
+    size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+    if (bytesRead < fileSize) {
+        fprintf(stderr, "Could not read file \"%s\".\n", path);
+        exit(74);
+    }
+    buffer[bytesRead] = '\0';
+
+    fclose(file);
+    return buffer;
+}

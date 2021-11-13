@@ -101,7 +101,7 @@ bool Compiler::compile(const char* source, Chunk *chunk) {
   }
 }*/
 
-Function Compiler::compile(const char *source) {
+Function Compiler::compile(const char *source, Module module) {
     scanner.reset(source);
     CompilerState compiler;
     initState(&compiler, TYPE_SCRIPT);
@@ -490,6 +490,18 @@ void Compiler::varDeclaration() {
 
     defineVariable(global);
 }
+
+void Compiler::import() {
+    consume(TOKEN_IDENTIFIER, "Expect a string after 'import'.");
+    int moduleConstant = identifierConstant(&parser.previous);
+    // Load
+    emitBytes(OpCode::IMPORT_MODULE, moduleConstant);
+
+    // Discard the unused result value from calling the module body's closure.
+    emitByte(OpCode::POP);
+    // consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+}
+
 void Compiler::expressionStatement() {
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
@@ -697,6 +709,8 @@ void Compiler::declaration() {
         funDeclaration();
     } else if (match(TOKEN_VAR)) {
         varDeclaration();
+    } else if (match(TOKEN_IMPORT)) {
+        import();
     } else {
         statement();
     }

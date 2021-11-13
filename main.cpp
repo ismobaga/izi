@@ -22,7 +22,7 @@ static void repl() {
         vm.interpret(line);
     }
 }
-static char* readFile(const char* path) {
+static char* readFile2(const char* path) {
     FILE* file = fopen(path, "rb");
     if (file == NULL) {
         fprintf(stderr, "Could not open file \"%s\".\n", path);

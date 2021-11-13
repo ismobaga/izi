@@ -15,10 +15,14 @@ ObjUpvalue::ObjUpvalue(Value *slot) {
     closed = NIL_VAL;
 }
 
+ObjModule::ObjModule(String name){
+    this->name = name;
+}
 ObjFunction::ObjFunction() {
     arity = 0;
     name = "";
     upvalueCount = 0;
+    module = nullptr;
     chunk = new Chunk();
 }
 ObjFunction::~ObjFunction() {

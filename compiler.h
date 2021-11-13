@@ -88,7 +88,7 @@ class Compiler {
     void initState(CompilerState *cs, FunctionType type);
     Chunk *currentChunk();
 
-    Function compile(const char *source);
+    Function compile(const char *source, Module module);
     void advance();
     void consume(TokenType type, const char *message);
     bool match(TokenType type) { return parser.match(type); }
@@ -124,6 +124,7 @@ class Compiler {
     void classDeclaration();
     void funDeclaration();
     void varDeclaration();
+    void import();
     void expressionStatement();
     void forStatement();
     void ifStatement();

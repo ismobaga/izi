@@ -17,6 +17,7 @@ struct ObjClosure;
 struct ObjClass;
 struct ObjInstance;
 struct ObjBoundMethod;
+struct ObjModule;
 
 using Nil = std::monostate;
 using String = std::string;
@@ -26,6 +27,7 @@ using Closure = std::shared_ptr<ObjClosure>;
 using Klass = std::shared_ptr<ObjClass>;
 using Instance = std::shared_ptr<ObjInstance>;
 using BoundMethod = std::shared_ptr<ObjBoundMethod>;
+using Module = std::shared_ptr<ObjModule>;
 
 enum ValueType {
     VAL_NIL,
@@ -38,6 +40,7 @@ enum ValueType {
     VAL_CLASS,
     VAL_INSTANCE,
     VAL_BOUND_METHOD,
+    VAL_MODULE,
 };
 
 /**
@@ -49,7 +52,7 @@ struct Value {
 
     using value_t = std::variant<bool, double, Nil, String,
                                  Function, NativeFunction,
-                                 Closure, Klass, Instance, BoundMethod>;
+                                 Closure, Klass, Instance, BoundMethod, Module>;
     value_t as;
 
     template <class T>
@@ -84,11 +87,21 @@ struct ObjUpvalue {
     ObjUpvalue(Value *slot);
 };
 
+struct ObjModule {
+    std::vector<Value> variables;
+    // Symbol table for the names of all module variables. Indexes here directly
+    // correspond to entries in [variables].
+    std::vector<String> variableNames;
+    String name;
+    ObjModule(String name);
+};
+
 struct ObjFunction {
     int arity;
     Chunk *chunk;
     std::string name;
     int upvalueCount;
+    Module module;
     ObjFunction();
     ~ObjFunction();
 };
@@ -161,6 +174,8 @@ struct ValueHash {
     Value { VAL_INSTANCE, value }
 #define BOUND_METHOD_VAL(value) \
     Value { VAL_BOUND_METHOD, value }
+#define MODULE_VAL(value) \
+    Value { VAL_MODULE, value }
 
 #define IS_BOOL(value) (value.type == VAL_BOOL)
 #define IS_NIL(value) (value.type == VAL_NIL)
@@ -172,6 +187,7 @@ struct ValueHash {
 #define IS_CLASS(value) (value.type == VAL_CLASS)
 #define IS_INSTANCE(value) (value.type == VAL_INSTANCE)
 #define IS_BOUND_METHOD(value) (value.type == VAL_BOUND_METHOD)
+#define IS_MODULE(value) (value.type == VAL_MODULE)
 
 #define AS_BOOL(value) (value.get<bool>())
 #define AS_NUMBER(value) (value.get<double>())
@@ -183,6 +199,7 @@ struct ValueHash {
 #define AS_CLASS(value) (value.get<Klass>())
 #define AS_INSTANCE(value) (value.get<Instance>())
 #define AS_BOUND_METHOD(value) (value.get<BoundMethod>())
+#define AS_MODULE(value) (value.get<Module>())
 
 struct OutputVisitor {
     void operator()(const double d) const { std::cout << d; }
@@ -203,6 +220,10 @@ struct OutputVisitor {
     void operator()(const Instance &i) const { std::cout << i->klass->name << " instance"; }
     void operator()(const BoundMethod &b) const {
         operator()(b->method->function);
+        ;
+    }
+    void operator()(const Module &n) const {
+        operator()("module " + n->name);
         ;
     }
 };

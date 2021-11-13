@@ -11,13 +11,19 @@ VM::VM() {
 }
 
 InterpretResult VM::interpret(const char *source) {
-    Function function = compiler.compile(source);
-    if (function == nullptr)
+    // getModule(STRING_VAL(""));
+    // Function function = compiler.compile(source);
+    // if (function == nullptr)
+    //     return INTERPRET_COMPILE_ERROR;
+
+    // push(FUNCTION_VAL(function));
+    // Closure closure = std::make_shared<ObjClosure>(function);
+    // pop();
+
+    Closure closure = compileInModule(STRING_VAL(copyString("___", 2)), source);
+    if (closure == nullptr)
         return INTERPRET_COMPILE_ERROR;
 
-    push(FUNCTION_VAL(function));
-    Closure closure = std::make_shared<ObjClosure>(function);
-    pop();
     push(CLOSURE_VAL(closure));
 
     call(closure, 0);
@@ -309,6 +315,14 @@ InterpretResult VM::run() {
                 pop();  // Subclass.
                 break;
             }
+            case IMPORT_MODULE: {
+                push(importModule(READ_CONSTANT()));
+                // If we get a closure, call it to execute the module body.
+                if (IS_CLOSURE(peek(0))) {
+                    callValue(peek(0), 0);
+                }
+                break;
+            }
         }
     }
 
@@ -478,6 +492,50 @@ void VM::defineMethod(String name) {
     Klass klass = AS_CLASS(peek(1));
     klass->methods[name] = method;
     pop();
+}
+
+Value VM::importModule(Value name) {
+    // todo:  name = resolver de module(name)
+    // If the module is already loaded
+    auto it = modules.find(AS_STRING(name));
+    if (it != modules.end()) return it->second;
+
+    //todo:  expose api to load module exemple pkg managr folder
+
+    String nameString = AS_STRING(name);
+    nameString = "./" + nameString +".izi";
+    char *source = readFile(nameString.c_str());
+
+    auto moduleClosure = compileInModule(name, source);
+}
+Module VM::getModule(Value name) {
+    auto it = modules.find(AS_STRING(name));
+
+    return it != modules.end() ? AS_MODULE(it->second) : nullptr;
+}
+Closure VM::compileInModule(Value name, const char *source) {
+    Module module = getModule(name);
+    if (module == nullptr) {
+        module = std::make_shared<ObjModule>(AS_STRING(name));
+        modules[AS_STRING(name)] = MODULE_VAL(module);
+
+        // Implicitly import the core module.
+        // Module coreModule = getModule(STRING_VAL(""));
+        // for (int i = 0; i < coreModule->variables.size(); i++) {
+            // DefineVariable(module,
+            //                coreModule->variableNames[i],
+            //                coreModule->variables[i], NULL);
+        // }
+    }
+
+    Function function = compiler.compile(source, module);
+    if (function == nullptr)
+        return nullptr;
+    push(FUNCTION_VAL(function));
+    Closure closure = std::make_shared<ObjClosure>(function);
+    pop();
+
+    return closure;
 }
 
 Value clockNative(int argCount, Value *args) {
