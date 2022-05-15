@@ -315,7 +315,7 @@ InterpretResult VM::run() {
                 pop();  // Subclass.
                 break;
             }
-            case IMPORT_MODULE: {
+            case IMPORT: {
                 push(importModule(READ_CONSTANT()));
                 // If we get a closure, call it to execute the module body.
                 if (IS_CLOSURE(peek(0))) {
@@ -362,15 +362,6 @@ void VM::runtimeError(const char *format, ...) {
     resetStack();
 }
 
-void VM::defineNative(const char *name, NativeFn function) {
-    push(STRING_VAL(copyString(name, (int)strlen(name))));
-    NativeFunction nf = std::make_shared<ObjNative>(function);
-    push(NATIVE_VAL(nf));
-    globals[AS_STRING(stack[0])] = stack[1];
-    pop();
-    pop();
-}
-
 void VM::push(Value value) {
     *stackTop = value;
     stackTop++;
@@ -386,10 +377,40 @@ Value VM::peek(int distance) {
 }
 
 bool VM::call(Closure closure, int argCount) {
-    if (argCount != closure->function->arity) {
-        runtimeError("Expected %d arguments but got %d.",
-                     closure->function->arity, argCount);
+    if (argCount + closure->function->optionalArgCount < closure->function->arity) {
+        runtimeError("'%s' Expects a minimum of %d arguments to but got %d.",
+                     closure->function->name.c_str(),
+                     closure->function->arity - closure->function->optionalArgCount,
+                     argCount);
         return false;
+    }
+
+    if (argCount < closure->function->arity) {
+        int index = argCount -
+                    (closure->function->arity - closure->function->optionalArgCount);
+        while (index < closure->function->optionalArgCount) {
+            uint16_t constant = closure->function->optionalArguments[index++];
+            if (constant == NEW_LIST_PARAM_VALUE) {
+                Value klass = globals["List"];
+                // findGlobal(copyString("List", 4), &klass);
+                push(NIL_VAL);
+                createInstance(AS_CLASS(klass), 0);
+            } else if (constant == NEW_HASH_PARAM_VALUE) {
+                Value klass = globals["Hash"];
+                // findGlobal(copyString("Hash", 4), &klass);
+                push(NIL_VAL);
+                createInstance(AS_CLASS(klass), 0);
+            } else {
+                push(closure->function->chunk->constants[constant]);
+            }
+            argCount++;
+        }
+    }
+
+    if (argCount != closure->function->arity) {
+        // runtimeError("Expected %d arguments but got %d.",
+        //  closure->function->arity, argCount);
+        // return false;
     }
     if (frameCount == FRAMES_MAX) {
         runtimeError("Stack overflow.");
@@ -500,13 +521,25 @@ Value VM::importModule(Value name) {
     auto it = modules.find(AS_STRING(name));
     if (it != modules.end()) return it->second;
 
-    //todo:  expose api to load module exemple pkg managr folder
+    // todo:  expose api to load module exemple pkg managr folder
 
     String nameString = AS_STRING(name);
-    nameString = "./" + nameString +".izi";
-    char *source = readFile(nameString.c_str());
+    char *source;
+    if (nameString == "core") {
+        source = R"(
+            class System{
+                println(val){
+                    print val;
+                }
+            }
+        )";
+    } else {
+        nameString = "./" + nameString + ".izi";
+        source = readFile(nameString.c_str());
+    }
 
     auto moduleClosure = compileInModule(name, source);
+    return CLOSURE_VAL(moduleClosure);
 }
 Module VM::getModule(Value name) {
     auto it = modules.find(AS_STRING(name));
@@ -522,9 +555,9 @@ Closure VM::compileInModule(Value name, const char *source) {
         // Implicitly import the core module.
         // Module coreModule = getModule(STRING_VAL(""));
         // for (int i = 0; i < coreModule->variables.size(); i++) {
-            // DefineVariable(module,
-            //                coreModule->variableNames[i],
-            //                coreModule->variables[i], NULL);
+        // DefineVariable(module,
+        //                coreModule->variableNames[i],
+        //                coreModule->variables[i], NULL);
         // }
     }
 
@@ -536,6 +569,51 @@ Closure VM::compileInModule(Value name, const char *source) {
     pop();
 
     return closure;
+}
+
+bool VM::createInstance(Klass klass, int argCount) {
+    Instance objIns = std::make_shared<ObjInstance>(klass);
+    if (objIns == nullptr) return false;
+    Value instance = INSTANCE_VAL(objIns);
+    stackTop[-argCount - 1] = instance;
+    auto it = klass->methods.find(constructName);
+    if (it != klass->methods.end()) {
+#define IS_NATIVE_METHOD(value) false
+        if (IS_NATIVE_METHOD(it->second)) {
+        } else {
+            return call(AS_CLOSURE(it->second), argCount);
+        }
+    } else if (argCount != 0) {
+        runtimeError("'%s()' expects 0 arguments but got %d.", klass->name.c_str(), argCount);
+        return false;
+    }
+
+    return true;
+}
+
+void VM::defineNative(const char *name, NativeFn function) {
+    push(STRING_VAL(copyString(name, (int)strlen(name))));
+    NativeFunction nf = std::make_shared<ObjNative>(function);
+    push(NATIVE_VAL(nf));
+    globals[AS_STRING(stack[0])] = stack[1];
+    pop();
+    pop();
+}
+
+void VM::defineNativeFunction(const char *name, NativeFn function) {
+    // push(OBJ_VAL(newNativeFunction(function)));
+    NativeFunction nf = std::make_shared<ObjNative>(function);
+    push(NATIVE_VAL(nf));
+    push(STRING_VAL(copyString(name, (int)strlen(name))));
+    globals[AS_STRING(stack[0])] = stack[1];
+    // addGlobal(peek(vm, 0), peek(vm, 1));
+    pop();
+    pop();
+}
+
+Value VM::bootstrapNativeClass(const char *name, NativeConstructor constructor, NativeDestructor destructor, ClassType classType, size_t dataSize, bool final) {
+    NativeClass nc = std::make_shared<ObjNativeClass>(name, constructor, destructor, classType, dataSize, final);
+    return NATIVE_CLASS_VAL(nc);
 }
 
 Value clockNative(int argCount, Value *args) {

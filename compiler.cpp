@@ -191,7 +191,7 @@ Function Compiler::endCompiler() {
     Function function = current->function;
 #ifdef DEBUG_PRINT_CODE
     if (!parser.hadError) {
-        // disassembleChunk(currentChunk(), function->name != ""
+        disassembleChunk(currentChunk(), function->name != ""
                                              ? function->name.c_str()
                                              : "<script>");
     }
@@ -495,7 +495,7 @@ void Compiler::import() {
     consume(TOKEN_IDENTIFIER, "Expect a string after 'import'.");
     int moduleConstant = identifierConstant(&parser.previous);
     // Load
-    emitBytes(OpCode::IMPORT_MODULE, moduleConstant);
+    emitBytes(OpCode::IMPORT, moduleConstant);
 
     // Discard the unused result value from calling the module body's closure.
     emitByte(OpCode::POP);

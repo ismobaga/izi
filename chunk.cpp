@@ -117,6 +117,9 @@ int Chunk::disassembleInstruction(int offset) {
             return constantInstruction("OP_METHOD", offset);
         case INHERIT:
             return simpleInstruction("OP_INHERIT", offset);
+        case OpCode::IMPORT:
+            return simpleInstruction("OP_IMPORT", offset);
+            break;
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

@@ -45,7 +45,7 @@ enum OpCode {
     CLASS,
     METHOD,
     INHERIT,
-    IMPORT_MODULE,
+    IMPORT,
     END_MODULE,
 
 };

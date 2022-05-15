@@ -12,10 +12,12 @@
 
 class Chunk;
 struct ObjNative;
+struct ObjNativeClass;
 struct ObjFunction;
 struct ObjClosure;
 struct ObjClass;
 struct ObjInstance;
+struct ObjNativeInstance;
 struct ObjBoundMethod;
 struct ObjModule;
 
@@ -25,7 +27,9 @@ using Function = std::shared_ptr<ObjFunction>;
 using NativeFunction = std::shared_ptr<ObjNative>;
 using Closure = std::shared_ptr<ObjClosure>;
 using Klass = std::shared_ptr<ObjClass>;
+using NativeClass = std::shared_ptr<ObjNativeClass>;
 using Instance = std::shared_ptr<ObjInstance>;
+using NativeInstance = std::shared_ptr<ObjNativeInstance>;
 using BoundMethod = std::shared_ptr<ObjBoundMethod>;
 using Module = std::shared_ptr<ObjModule>;
 
@@ -38,21 +42,74 @@ enum ValueType {
     VAL_CLOSURE,
     VAL_NATIVE,
     VAL_CLASS,
+    VAL_NATIVE_CLASS,
     VAL_INSTANCE,
     VAL_BOUND_METHOD,
     VAL_MODULE,
 };
 
+enum ClassType
+{
+    CLS_BOOLEAN,
+    CLS_COND_VAR,
+    CLS_DATETIME,
+    CLS_DURATION,
+    CLS_ENUM,
+    CLS_ENUM_VALUE,
+    CLS_ENV,
+    CLS_EXCEPTION,
+    CLS_FILE,
+    CLS_ITERABLE,
+    CLS_ITERATOR,
+    CLS_LIST,
+    CLS_HASH,
+    CLS_IMAGE,
+    CLS_MODULE,
+    CLS_MUTEX,
+    CLS_NIL,
+    CLS_NUMBER,
+    CLS_OBJECT,
+    CLS_SET,
+    CLS_SOCKET,
+    CLS_STRING,
+    CLS_THREAD,
+    CLS_USER_DEF,
+} ;
+
+enum Operator
+{
+    OPERATOR_MULTIPLICATION,
+    OPERATOR_PLUS,
+    OPERATOR_MINUS,
+    OPERATOR_DIVISION,
+    OPERATOR_MODULO,
+    OPERATOR_GREATER_THAN,
+    OPERATOR_LESS_THAN,
+    OPERATOR_GREATER_EQUAL,
+    OPERATOR_LESS_EQUAL,
+    OPERATOR_EQUALS,
+    OPERATOR_INDEX,
+    OPERATOR_INDEX_ASSIGN,
+    OPERATOR_BITWISE_OR,
+    OPERATOR_BITWISE_AND,
+    OPERATOR_BITWISE_XOR,
+    OPERATOR_BITWISE_NEGATE,
+    OPERATOR_BITSHIFT_LEFT,
+    OPERATOR_BITSHIFT_RIGHT,
+    NUM_OPERATORS,
+    OPERATOR_UNKNOWN,
+} ;
+
 /**
  * @brief IZI Value type
- * 
+ *
  */
 struct Value {
     ValueType type;
 
     using value_t = std::variant<bool, double, Nil, String,
                                  Function, NativeFunction,
-                                 Closure, Klass, Instance, BoundMethod, Module>;
+                                 Closure, Klass, NativeClass, Instance, NativeInstance, BoundMethod, Module>;
     value_t as;
 
     template <class T>
@@ -102,6 +159,8 @@ struct ObjFunction {
     std::string name;
     int upvalueCount;
     Module module;
+    uint16_t optionalArguments[MAX_ARGS];
+    uint8_t optionalArgCount;
     ObjFunction();
     ~ObjFunction();
 };
@@ -125,13 +184,44 @@ using StringMap = std::unordered_map<String, Value>;
 struct ObjClass {
     std::string name;
     StringMap methods;
-    ObjClass(std::string name);
+    ClassType classType;
+    bool final;
+    ObjClass(std::string name, bool final = false);
+};
+
+typedef void (*NativeConstructor)(void *data);
+typedef void (*NativeDestructor)(void *data);
+typedef Value (*NativeMethod)(Value receiver, int argCount, Value *args);
+
+struct ObjNativeClass {
+    Klass klass;
+    NativeConstructor constructor;
+    NativeDestructor destructor;
+    size_t allocSize;
+    ObjNativeClass(
+        std::string name,
+        NativeConstructor constructor,
+        NativeDestructor destructor,
+        ClassType classType,
+        size_t allocSize,
+        bool final);
+};
+
+struct ObjNativeMethod {
+    NativeMethod function;
+    uint8_t arity;
+    bool isStatic;
+    Value name;
 };
 
 struct ObjInstance {
     Klass klass;
     StringMap fields;
     ObjInstance(Klass k);
+};
+
+struct ObjNativeInstance {
+    ObjInstance instance;
 };
 
 struct ObjBoundMethod {
@@ -147,6 +237,10 @@ struct ValueHash {
         return h1;
     }
 };
+
+extern ObjNativeInstance nil_instance;
+extern ObjNativeInstance *boolean_true;
+extern ObjNativeInstance *boolean_false;
 
 // using Entry = std::pair<std::string, Value>;
 
@@ -170,6 +264,8 @@ struct ValueHash {
     Value { VAL_CLOSURE, value }
 #define CLASS_VAL(value) \
     Value { VAL_CLASS, value }
+#define NATIVE_CLASS_VAL(value) \
+    Value { VAL_NATIVE_CLASS, value }
 #define INSTANCE_VAL(value) \
     Value { VAL_INSTANCE, value }
 #define BOUND_METHOD_VAL(value) \
@@ -217,7 +313,9 @@ struct OutputVisitor {
             std::cout << "<srcipt>";
     }
     void operator()(const Klass &k) const { std::cout << k->name; }
+    void operator()(const NativeClass &k) const { std::cout << k->klass->name; }
     void operator()(const Instance &i) const { std::cout << i->klass->name << " instance"; }
+    void operator()(const NativeInstance &i) const { std::cout << i->instance.klass->name << " instance"; }
     void operator()(const BoundMethod &b) const {
         operator()(b->method->function);
         ;

@@ -15,7 +15,7 @@ ObjUpvalue::ObjUpvalue(Value *slot) {
     closed = NIL_VAL;
 }
 
-ObjModule::ObjModule(String name){
+ObjModule::ObjModule(String name) {
     this->name = name;
 }
 ObjFunction::ObjFunction() {
@@ -41,8 +41,24 @@ ObjClosure::~ObjClosure() {
     delete[] upvalues;
 }
 
-ObjClass::ObjClass(std::string name) {
+ObjClass::ObjClass(std::string name, bool final) {
     this->name = name;
+    this->final = final;
+}
+ObjNativeClass::ObjNativeClass(std::string name,
+                               NativeConstructor constructor,
+                               NativeDestructor destructor,
+                               ClassType classType,
+                               size_t allocSize,
+                               bool final) {
+    // ObjNativeClass *klass = ALLOCATE_OBJ(ObjNativeClass, OBJ_NATIVE_CLASS);
+    // klass = ObjClass(name);
+    // push(CLASS_VAL(klass));
+    // init_class((ObjClass *)klass, name, classType, final);
+    klass = std::make_shared<ObjClass>(name, final);
+    this->constructor = constructor;
+    this->destructor = destructor;
+    this->allocSize = allocSize == 0 ? sizeof(ObjNativeInstance) : allocSize;
 }
 
 ObjInstance::ObjInstance(Klass k) {

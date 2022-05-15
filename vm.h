@@ -17,8 +17,9 @@ using IPType = uint8_t *;  // std::vector<uint8_t>::iterator;
 
 struct CallFrame {
     Closure closure;
-    // IPType ip;
+    IPType ip;
     int index;
+    Value *slots;
     inline IPType getIp() {
         return closure->function->chunk->code.data() + index;
     }
@@ -31,7 +32,6 @@ struct CallFrame {
 
         return (uint16_t)((getIp()[-2] << 8) | getIp()[-1]);
     }
-    Value *slots;
 };
 
 struct VM {
@@ -40,11 +40,11 @@ struct VM {
     std::vector<uint8_t>::iterator itip;
     Value stack[STACK_MAX];
     Value *stackTop;
+    ObjUpvalue *openUpvalues;
 
     std::unordered_map<std::string, Value> globals; /* hash table global variables*/
     // cache string in memoire chap. 20
     // Table strings;
-    ObjUpvalue *openUpvalues;
 
     std::unordered_map<String, Value> modules;
     Module lastModule;
@@ -60,7 +60,6 @@ struct VM {
     InterpretResult run();
     void resetStack();
     void runtimeError(const char *format, ...);
-    void defineNative(const char *name, NativeFn function);
     void push(Value value);
     Value pop();
     Value peek(int distance);
@@ -73,12 +72,26 @@ struct VM {
     Value importModule(Value name);
     Closure compileInModule(Value name, const char *source);
     Module getModule(Value name);
+
+    bool createInstance(Klass klass, int argCount);
+
+    /** Native **/
+    void defineNative(const char *name, NativeFn function);
+    void defineNativeFunction(const char *name, NativeFn function);
+    Value defineNativeClass(const char *name, NativeConstructor constructor, NativeDestructor destructor, const char *super_name, ClassType classType, size_t dataSize, bool final);
+    void defineNativeMethod(Value klass, NativeMethod function, const char *name, uint8_t arity, bool isStatic);
+    void defineNativeOperator(Value klass, NativeMethod function, uint8_t arity, Operator operator_);
+    void setNativeProperty(Value self, const char *property_name, Value value);
+    Value getNativeProperty(Value self, const char *property_name);
+
+    Value bootstrapNativeClass(const char *name, NativeConstructor constructor, NativeDestructor destructor, ClassType classType, size_t dataSize, bool final);
+    Value completeNativeClassDefinition(Value klass_, const char *super_name);
 };
 
 Value clockNative(int argCount, Value *args);
 
-static char* readFile(const char* path) {
-    FILE* file = fopen(path, "rb");
+static char *readFile(const char *path) {
+    FILE *file = fopen(path, "rb");
     if (file == NULL) {
         fprintf(stderr, "Could not open file \"%s\".\n", path);
         exit(74);
@@ -88,7 +101,7 @@ static char* readFile(const char* path) {
     size_t fileSize = ftell(file);
     rewind(file);
 
-    char* buffer = (char*)malloc(fileSize + 1);
+    char *buffer = (char *)malloc(fileSize + 1);
     if (buffer == NULL) {
         fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
         exit(74);

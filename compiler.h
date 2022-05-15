@@ -6,6 +6,10 @@
 #include "chunk.h"
 #include "scanner.h"
 
+
+#define NEW_HASH_PARAM_VALUE ((uint16_t) 0x8000)
+#define NEW_LIST_PARAM_VALUE ((uint16_t) 0x4000)
+
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
 #endif
